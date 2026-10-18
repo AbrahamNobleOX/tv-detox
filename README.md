@@ -2,6 +2,8 @@
 
 **Make an old, slow Android TV fast again, with Claude Code or Codex doing the work.**
 
+[![YouTube](https://img.shields.io/badge/YouTube-@ansubkhan-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@ansubkhan)
+
 ![The home screen](docs/home-screen.png)
 
 - **Removes the junk:** bloatware, ads and sponsored rows, gone.
@@ -106,4 +108,6 @@ It's one screen of plain Java, no libraries, no Gradle. The background is drawn 
 
 ---
 
-Made by [Ansub Khan](https://www.youtube.com/@ansubkhan). I build things like this with AI on YouTube. · MIT License
+Made by Ansub Khan. I build things like this with AI every week. **[Watch on YouTube →](https://www.youtube.com/@ansubkhan)**
+
+MIT License
