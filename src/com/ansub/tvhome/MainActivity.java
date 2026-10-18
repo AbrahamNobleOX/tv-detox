@@ -9,8 +9,11 @@ import android.content.SharedPreferences;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Typeface;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
@@ -225,8 +228,7 @@ public class MainActivity extends Activity {
         if (banner != null) {
             bg.setColor(0xFF1E1A1C);
             ImageView iv = new ImageView(this);
-            iv.setImageDrawable(banner);
-            iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+            iv.setImageDrawable(fit(banner, w, h));
             card.addView(iv, new FrameLayout.LayoutParams(-1, -1));
         } else {
             // Quiet "glass" tile: icon above label.
@@ -344,6 +346,23 @@ public class MainActivity extends Activity {
     private static Typeface fromFile(String path, Typeface fallback) {
         try { return new File(path).exists() ? Typeface.createFromFile(path) : fallback; }
         catch (Exception e) { return fallback; }
+    }
+
+    // Draws a banner once into a tile-sized bitmap (center-cropped). Some apps ship huge banners
+    // that Android 9 refuses to draw ("Canvas: trying to draw too large bitmap"); this also saves RAM.
+    private Drawable fit(Drawable d, int w, int h) {
+        try {
+            Bitmap b = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+            int iw = d.getIntrinsicWidth(), ih = d.getIntrinsicHeight();
+            if (iw <= 0 || ih <= 0) { iw = w; ih = h; }
+            float s = Math.max((float) w / iw, (float) h / ih);
+            int dw = Math.round(iw * s), dh = Math.round(ih * s);
+            d.setBounds((w - dw) / 2, (h - dh) / 2, (w - dw) / 2 + dw, (h - dh) / 2 + dh);
+            d.draw(new Canvas(b));
+            return new BitmapDrawable(getResources(), b);
+        } catch (Throwable t) {
+            return d;
+        }
     }
 
     private int px(int v) {

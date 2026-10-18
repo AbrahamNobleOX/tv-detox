@@ -7,7 +7,7 @@ TV="$1"; SHOT="${2:-smoke.png}"
 fail() {
   echo "FAIL: $*" >&2
   echo "-- on screen: $(focus)" >&2
-  adb -s "$TV" logcat -d -b crash 2>/dev/null | tail -30 >&2
+  adb -s "$TV" logcat -d -b crash 2>/dev/null | grep -A12 "FATAL EXCEPTION" | head -40 >&2
   adb -s "$TV" exec-out screencap -p > "${SHOT%.png}-fail.png" 2>/dev/null || true
   exit 1
 }
