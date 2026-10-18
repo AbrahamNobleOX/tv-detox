@@ -1,28 +1,39 @@
+<div align="center">
+
 # TV Detox
 
-**Make an old, slow Android TV fast again, with Claude Code or Codex doing the work.**
+### Make an old, slow Android TV fast again.
 
+Claude Code or Codex does the work. You just press OK on the remote.
+
+[![Release](https://img.shields.io/github/v/release/Ansub/tv-detox?color=black)](https://github.com/Ansub/tv-detox/releases/latest)
+[![Tests](https://img.shields.io/github/actions/workflow/status/Ansub/tv-detox/build.yml?branch=main&label=tests)](https://github.com/Ansub/tv-detox/actions)
+[![License](https://img.shields.io/badge/license-MIT-black)](LICENSE)
 [![YouTube](https://img.shields.io/badge/YouTube-@ansubkhan-FF0000?logo=youtube&logoColor=white)](https://www.youtube.com/@ansubkhan)
 
-![The home screen](docs/home-screen.png)
+<img src="docs/home-screen.png" alt="The TV Detox home screen" width="100%">
 
-- **Removes the junk:** bloatware, ads and sponsored rows, gone.
-- **Gives you this home screen:** your apps, your HDMI inputs and a clock. Nothing else.
-- **Undo anytime:** nothing is deleted for good.
+</div>
 
-## How to do it (3 steps)
+<table>
+<tr>
+<td width="33%" valign="top"><b>🧹 Removes the junk</b><br>Bloatware, ads and sponsored rows, gone.</td>
+<td width="33%" valign="top"><b>📺 A calm home screen</b><br>Your apps, your HDMI inputs and a clock. Nothing else.</td>
+<td width="33%" valign="top"><b>↩️ Undo anytime</b><br>Apps are turned off, never deleted.</td>
+</tr>
+</table>
 
-### 1. Turn on developer mode on your TV
+## Get started
 
-Settings → Device Preferences → About → press **Build** 7 times. Then open the new **Developer options** and turn on **USB debugging**. ([Need more help?](#turning-on-developer-mode))
+**1. Turn on developer mode on the TV.**
+Settings → Device Preferences → About → press **Build** 7 times. Then turn on **USB debugging** in **Developer options**. [Stuck?](#help)
 
-### 2. Get [Claude Code](https://claude.com/claude-code) or [Codex](https://openai.com/codex) on your laptop
+**2. Open [Claude Code](https://claude.com/claude-code) or [Codex](https://openai.com/codex) on your laptop.**
+The laptop and TV must be on the same Wi-Fi.
 
-Your laptop and TV must be on the same Wi-Fi.
+**3. Paste this in.**
 
-### 3. Paste this in
-
-```
+```text
 Help me clean up my Android TV and make it faster.
 My TV is a <brand and model>.
 
@@ -43,15 +54,16 @@ My TV is a <brand and model>.
 6. Restart the TV and show me free memory before and after.
 ```
 
-That's it. It does the rest and asks you before each change.
+That's it. It asks you before every change.
 
-> **Disclaimer:** this is just what worked for us, not professional advice. Try it at your own risk. You're responsible for your own TV, and I'm not liable if something goes wrong.
+> [!NOTE]
+> This is what worked for us, not professional advice. Use it at your own risk. You're responsible for your own TV, and I'm not liable if something goes wrong.
 
----
+## Help
 
-## More help
-
-### Turning on developer mode
+<details>
+<summary><b>How do I turn on developer mode?</b></summary>
+<br>
 
 1. On the TV, open **Settings**, then **Device Preferences** (or **System**), then **About**.
 2. Press OK on **Build** 7 times until you see "You are now a developer."
@@ -60,26 +72,42 @@ That's it. It does the rest and asks you before each change.
 
 Menus differ a bit by brand. If you're stuck, ask Claude or Codex: *"I have a \<brand and model\> TV. How can you connect to it from my laptop and take control of it?"*
 
-### Tested on
+</details>
+
+<details>
+<summary><b>Which TVs does it work on?</b></summary>
+<br>
 
 Android TV 9 (a real TV), 11 and 12, and Google TV 14. Every change is tested automatically on emulators.
 
-### The TV still opens Live TV or HDMI when it turns on
+</details>
+
+<details>
+<summary><b>The TV still opens Live TV or HDMI when it turns on</b></summary>
+<br>
 
 That's a TV setting, not this home screen. Ask it: *"My TV opens Live TV at startup instead of the home screen. Find that setting and turn it off."*
 
-### Install the home screen yourself
+</details>
 
-You only need `adb` (Mac: `brew install android-platform-tools`). Download this repo, then:
+<details>
+<summary><b>Can I install the home screen without AI?</b></summary>
+<br>
+
+Yes. You only need `adb` (Mac: `brew install android-platform-tools`). Download this repo, then:
 
 ```sh
-sh install.sh <TV_IP>                                   # picks your TV apps for you
+sh install.sh <TV_IP>                                               # picks your TV apps for you
 sh install.sh <TV_IP> "com.netflix.ninja,com.hulu.livingroomplus"   # or choose them
 ```
 
 Most TVs keep opening their own home screen, so the script offers to turn that off. Nothing is uninstalled.
 
-### Undo
+</details>
+
+<details>
+<summary><b>How do I undo it?</b></summary>
+<br>
 
 ```sh
 sh undo.sh <TV_IP>
@@ -87,8 +115,11 @@ sh undo.sh <TV_IP>
 
 This turns your TV's own home screen back on and removes this one. To undo the cleanup too, ask Claude or Codex to reverse everything on its list.
 
+</details>
+
 <details>
 <summary><b>For developers: build it yourself</b></summary>
+<br>
 
 1. Put your default apps in `apps.txt` (package names, one per line, first six show). You can also pass them to `install.sh` instead.
 2. Install Java 17 and the Android SDK. On a Mac:
@@ -108,6 +139,12 @@ It's one screen of plain Java, no libraries, no Gradle. The background is drawn 
 
 ---
 
-Made by Ansub Khan. I build things like this with AI every week. **[Watch on YouTube →](https://www.youtube.com/@ansubkhan)**
+<div align="center">
 
-MIT License
+Made by **Ansub Khan**. I build things like this with AI every week.
+
+[**Watch on YouTube →**](https://www.youtube.com/@ansubkhan)
+
+<sub>MIT License</sub>
+
+</div>
