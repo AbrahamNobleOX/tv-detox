@@ -48,7 +48,8 @@ if ! out=$(adb -s "$TV" install -r "$APK" 2>&1); then
 fi
 
 if [ -n "$APPS" ]; then
-  adb -s "$TV" shell am start -n com.ansub.tvhome/.MainActivity --es apps "\"$APPS\"" >/dev/null
+  # The stamp makes the app apply this list once, even if Android later replays this start.
+  adb -s "$TV" shell am start -n com.ansub.tvhome/.MainActivity --es apps "\"$APPS\"" --es stamp "$(date +%s)" >/dev/null
 fi
 
 ME=com.ansub.tvhome/.MainActivity
