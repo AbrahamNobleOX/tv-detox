@@ -30,6 +30,7 @@ final class LineIcon extends Drawable {
 
     @Override
     public void draw(Canvas c) {
+        if (ops == null) return;
         float s = getBounds().width() / 240f; // ops are in tenths of the 24-unit grid
         paint.setStrokeWidth(16 * s);
         path.reset();

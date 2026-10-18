@@ -205,23 +205,27 @@ public class MainActivity extends Activity {
             } catch (Exception ignored) {}
             String label = pkg;
             try { label = pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString(); } catch (Exception ignored) {}
-            addTile(pkg, label, banner, null, m + col * (w + g), top1, w, h);
+            // Apps without a TV banner get a plain tile with their normal icon.
+            Drawable icon = null;
+            if (banner == null) try { icon = pm.getApplicationIcon(pkg); } catch (Exception ignored) {}
+            addTile(pkg, label, banner, null, icon, m + col * (w + g), top1, w, h);
             col++;
         }
 
         col = 0;
         if (!apps.contains(PLAY_STORE) && launchIntent(pm, PLAY_STORE) != null)
-            addTile(PLAY_STORE, "Play Store", null, LineIcon.PLAY, m + col++ * (w + g), top2, w, h);
+            addTile(PLAY_STORE, "Play Store", null, LineIcon.PLAY, null, m + col++ * (w + g), top2, w, h);
         for (TvInputInfo in : hdmiInputs())
-            addTile(in.getId(), inputLabel(in), null, LineIcon.HDMI, m + col++ * (w + g), top2, w, h);
-        addTile(SETTINGS, "Settings", null, LineIcon.SETTINGS, m + col * (w + g), top2, w, h);
+            addTile(in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), top2, w, h);
+        addTile(SETTINGS, "Settings", null, LineIcon.SETTINGS, null, m + col * (w + g), top2, w, h);
 
         View restore = null;
         for (View t : tiles) if (t.getTag().equals(focusedKey)) restore = t;
         if (restore != null) restore.requestFocus();
     }
 
-    private void addTile(final String key, String label, Drawable banner, int[] icon, int x, int y, int w, int h) {
+    private void addTile(final String key, String label, Drawable banner, int[] lineIcon, Drawable appIcon,
+                         int x, int y, int w, int h) {
         FrameLayout card = new FrameLayout(this);
         final GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(px(RADIUS));
@@ -238,10 +242,16 @@ public class MainActivity extends Activity {
             inner.setOrientation(LinearLayout.VERTICAL);
             inner.setGravity(Gravity.CENTER);
             ImageView iv = new ImageView(this);
-            iv.setImageDrawable(new LineIcon(icon));
-            inner.addView(iv, new LinearLayout.LayoutParams(px(44), px(44)));
+            int size = lineIcon != null ? px(44) : px(64);
+            if (lineIcon != null) iv.setImageDrawable(new LineIcon(lineIcon));
+            else if (appIcon != null) iv.setImageDrawable(fit(appIcon, size, size));
+            inner.addView(iv, new LinearLayout.LayoutParams(size, size));
             TextView t = text(px(24), 0xE0FFFFFF, regular);
             t.setText(label);
+            t.setSingleLine(true);
+            t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            t.setGravity(Gravity.CENTER);
+            t.setPadding(px(16), 0, px(16), 0);
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
             lp.topMargin = px(12);
             inner.addView(t, lp);
