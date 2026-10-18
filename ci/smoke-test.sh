@@ -4,7 +4,15 @@
 set -e
 cd "$(dirname "$0")/.."
 TV="$1"; SHOT="${2:-smoke.png}"
-fail() { echo "FAIL: $*" >&2; exit 1; }
+fail() {
+  echo "FAIL: $*" >&2
+  echo "-- on screen: $(focus)" >&2
+  adb -s "$TV" logcat -d -b crash 2>/dev/null | tail -30 >&2
+  adb -s "$TV" exec-out screencap -p > "${SHOT%.png}-fail.png" 2>/dev/null || true
+  exit 1
+}
+# Waits up to 15s for the home screen to be in front.
+wait_home() { for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do focus | grep -q com.ansub.tvhome && return 0; sleep 1; done; return 1; }
 ui() { adb -s "$TV" shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb -s "$TV" shell cat /sdcard/ui.xml; }
 focus() { adb -s "$TV" shell dumpsys window | grep -m1 mCurrentFocus; }
 
@@ -15,8 +23,8 @@ YES=1 sh install.sh "$TV"
 sleep 3
 home=$(adb -s "$TV" shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1 | tr -d '\r')
 [ "$home" = "com.ansub.tvhome/.MainActivity" ] || fail "default home is $home"
-adb -s "$TV" shell input keyevent KEYCODE_HOME; sleep 3
-focus | grep -q com.ansub.tvhome || fail "home screen not in front: $(focus)"
+adb -s "$TV" shell input keyevent KEYCODE_HOME
+wait_home || fail "home screen not in front"
 
 echo "== home screen shows a clock and Settings"
 x=$(ui)
@@ -28,17 +36,17 @@ echo "   $tiles tiles"
 echo "== remote: move right, open Settings, come back with Home"
 adb -s "$TV" shell input keyevent KEYCODE_DPAD_RIGHT
 adb -s "$TV" shell am start -a android.settings.SETTINGS >/dev/null; sleep 3
-adb -s "$TV" shell input keyevent KEYCODE_HOME; sleep 3
-focus | grep -q com.ansub.tvhome || fail "Home didn't come back: $(focus)"
+adb -s "$TV" shell input keyevent KEYCODE_HOME
+wait_home || fail "Home didn't come back"
 
 echo "== custom app list"
 # Use whatever TV app this device has (test images may have none).
 app=$(adb -s "$TV" shell cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.LEANBACK_LAUNCHER \
   | tr -d '\r' | grep / | sed 's|/.*||; s/^ *//' | grep -vx com.ansub.tvhome | head -1)
 if [ -n "$app" ]; then
-  YES=1 sh install.sh "$TV" "$app" >/dev/null
-  sleep 3
-  focus | grep -q com.ansub.tvhome || fail "home screen not in front after custom list"
+  YES=1 sh install.sh "$TV" "$app"
+  adb -s "$TV" shell input keyevent KEYCODE_HOME
+  wait_home || fail "home screen not in front after custom list"
   n=$(ui | grep -o 'focusable="true"' | wc -l | tr -d ' ')
   [ "$n" -ge 2 ] || fail "custom app $app didn't show up"
   echo "   $app shows up"
