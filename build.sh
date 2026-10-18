@@ -1,7 +1,7 @@
 #!/bin/sh
-# Builds out/tvhome.apk. Needs Java 17 and the Android SDK (platform 28, build-tools 34).
+# Builds out/tvhome.apk. Needs Java 17 and the Android SDK (platform 34, build-tools 34).
 #   macOS:  brew install openjdk@17 && brew install --cask android-commandlinetools
-#           sdkmanager "platforms;android-28" "build-tools;34.0.0"
+#           sdkmanager "platforms;android-34" "build-tools;34.0.0"
 # Use a different app list with: APPS=my-apps.txt sh build.sh
 set -e
 cd "$(dirname "$0")"
@@ -10,8 +10,8 @@ cd "$(dirname "$0")"
 [ -n "$JAVA_HOME" ] && export PATH="$JAVA_HOME/bin:$PATH"
 SDK=${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}
 [ -n "$SDK" ] || for d in /opt/homebrew/share/android-commandlinetools "$HOME/Library/Android/sdk" "$HOME/Android/Sdk"; do [ -d "$d" ] && SDK=$d && break; done
-BT=$SDK/build-tools/34.0.0; JAR=$SDK/platforms/android-28/android.jar
-[ -f "$JAR" ] && [ -d "$BT" ] || { echo "Android SDK not found. Set ANDROID_HOME, and install platforms;android-28 and build-tools;34.0.0." >&2; exit 1; }
+BT=$SDK/build-tools/34.0.0; JAR=$SDK/platforms/android-34/android.jar
+[ -f "$JAR" ] && [ -d "$BT" ] || { echo "Android SDK not found. Set ANDROID_HOME, and install platforms;android-34 and build-tools;34.0.0." >&2; exit 1; }
 
 rm -rf out; mkdir -p out/classes out/dex out/gen/com/ansub/tvhome
 
@@ -23,7 +23,7 @@ rm -rf out; mkdir -p out/classes out/dex out/gen/com/ansub/tvhome
   echo "}; }"
 } > out/gen/com/ansub/tvhome/Apps.java
 
-"$BT/aapt2" link -o out/base.apk -I "$JAR" --manifest AndroidManifest.xml --min-sdk-version 21 --target-sdk-version 28
+"$BT/aapt2" link -o out/base.apk -I "$JAR" --manifest AndroidManifest.xml --min-sdk-version 21 --target-sdk-version 34
 javac -nowarn -Xlint:-options -source 1.8 -target 1.8 -bootclasspath "$JAR:$BT/core-lambda-stubs.jar" \
   -d out/classes $(find src out/gen -name "*.java")
 "$BT/d8" --min-api 21 --release --lib "$JAR" --output out/dex $(find out/classes -name '*.class')

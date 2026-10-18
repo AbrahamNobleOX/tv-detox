@@ -93,7 +93,7 @@ This turns your TV's own home screen back on and removes this one. To undo the c
    ```sh
    brew install openjdk@17
    brew install --cask android-commandlinetools
-   sdkmanager "platforms;android-28" "build-tools;34.0.0"
+   sdkmanager "platforms;android-34" "build-tools;34.0.0"
    ```
 3. `sh build.sh`, then `sh install.sh <TV_IP>` installs your build instead of the release.
 4. `sh ci/smoke-test.sh <TV_IP or emulator>` checks it all works.

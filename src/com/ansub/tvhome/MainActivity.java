@@ -100,7 +100,8 @@ public class MainActivity extends Activity {
         f.addAction(Intent.ACTION_PACKAGE_REMOVED);
         f.addAction(Intent.ACTION_PACKAGE_CHANGED);
         f.addDataScheme("package");
-        registerReceiver(packagesChanged, f);
+        if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(packagesChanged, f, Context.RECEIVER_EXPORTED);
+        else registerReceiver(packagesChanged, f);
     }
 
     @Override

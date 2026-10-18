@@ -38,6 +38,7 @@ if [ ! -f "$APK" ]; then
   curl -fsSL -o "$APK" https://github.com/Ansub/android-tv-home/releases/latest/download/tvhome.apk
 fi
 
+echo "Installing… If your TV shows a Google Play Protect message, follow it on the TV to allow the install."
 if ! out=$(adb -s "$TV" install -r "$APK" 2>&1); then
   case "$out" in
     *UPDATE_INCOMPATIBLE*) echo "Replacing an older copy signed with a different key…"
