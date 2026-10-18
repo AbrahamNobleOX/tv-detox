@@ -5,7 +5,10 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
@@ -28,13 +31,21 @@ import android.widget.TextView;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 public class MainActivity extends Activity {
 
-    // The top-row apps come from apps.txt, which build.sh turns into Apps.LIST.
+    // Top-row apps, in this order of preference:
+    //  1. a list saved at install time:  am start -n com.ansub.tvhome/.MainActivity --es apps "pkg1,pkg2"
+    //     (--es apps auto  goes back to 2)
+    //  2. apps.txt (built in as Apps.LIST), topped up with other TV apps installed on this TV.
     // Missing apps are skipped, and only the first six are shown.
+    private static final String PREFS = "config";
+    private static final List<String> NOT_APPS = Arrays.asList("com.android.vending", "com.android.tv.settings",
+            "com.android.tv", "com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx",
+            "com.google.android.leanbacklauncher");
     private static final String PLAY_STORE = "com.android.vending";
     private static final String SETTINGS = "settings";
     private static final int PER_ROW = 6, MAX_INPUTS = 4;
@@ -58,6 +69,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        saveConfig(getIntent());
         loadFonts();
         scale = getResources().getDisplayMetrics().widthPixels / 1920f;
         getWindow().setBackgroundDrawable(background());
@@ -92,6 +104,47 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
         unregisterReceiver(packagesChanged);
         super.onDestroy();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        if (saveConfig(intent)) buildTiles();
+    }
+
+    // Saves an app list passed with --es apps "...". Returns true if it changed.
+    private boolean saveConfig(Intent intent) {
+        String apps = intent == null ? null : intent.getStringExtra("apps");
+        if (apps == null) return false;
+        apps = apps.trim();
+        SharedPreferences.Editor e = getSharedPreferences(PREFS, 0).edit();
+        if (apps.isEmpty() || apps.equalsIgnoreCase("auto")) e.remove("apps");
+        else e.putString("apps", apps);
+        e.apply();
+        dirty = true;
+        return true;
+    }
+
+    private List<String> appList(PackageManager pm) {
+        List<String> out = new ArrayList<>();
+        String saved = getSharedPreferences(PREFS, 0).getString("apps", null);
+        String[] wanted = saved != null ? saved.split("[,\\s]+") : Apps.LIST;
+        for (String p : wanted) if (!p.isEmpty() && !out.contains(p) && launchIntent(pm, p) != null) out.add(p);
+        if (saved == null) {
+            // Top up with other TV apps people installed (or updated), skipping launchers and system tools.
+            Intent q = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LEANBACK_LAUNCHER);
+            for (ResolveInfo ri : pm.queryIntentActivities(q, 0)) {
+                if (out.size() >= PER_ROW) break;
+                String p = ri.activityInfo.packageName;
+                int flags = ri.activityInfo.applicationInfo.flags;
+                boolean stockSystem = (flags & ApplicationInfo.FLAG_SYSTEM) != 0
+                        && (flags & ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) == 0;
+                if (stockSystem || out.contains(p) || NOT_APPS.contains(p) || p.equals(getPackageName())) continue;
+                out.add(p);
+            }
+        }
+        return out.size() > PER_ROW ? out.subList(0, PER_ROW) : out;
     }
 
     @Override
@@ -138,7 +191,8 @@ public class MainActivity extends Activity {
         int h = w * 9 / 16;
 
         int col = 0;
-        for (String pkg : Apps.LIST) {
+        List<String> apps = appList(pm);
+        for (String pkg : apps) {
             Intent li = launchIntent(pm, pkg);
             if (li == null || col == PER_ROW) continue;
             Drawable banner = null;
@@ -153,7 +207,7 @@ public class MainActivity extends Activity {
         }
 
         col = 0;
-        if (launchIntent(pm, PLAY_STORE) != null)
+        if (!apps.contains(PLAY_STORE) && launchIntent(pm, PLAY_STORE) != null)
             addTile(PLAY_STORE, "Play Store", null, LineIcon.PLAY, m + col++ * (w + g), top2, w, h);
         for (TvInputInfo in : hdmiInputs())
             addTile(in.getId(), inputLabel(in), null, LineIcon.HDMI, m + col++ * (w + g), top2, w, h);

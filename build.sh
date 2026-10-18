@@ -31,7 +31,9 @@ cp out/base.apk out/unsigned.apk; (cd out/dex && zip -q ../unsigned.apk classes.
 "$BT/zipalign" -f 4 out/unsigned.apk out/aligned.apk
 
 # A signing key is made on first build. Keep key.jks: updates must be signed with the same key.
-[ -f key.jks ] || keytool -genkeypair -keystore key.jks -storepass tvhome123 -keypass tvhome123 -alias tvhome \
+# (Releases are signed with their own key: set KEYSTORE and KEYSTORE_PASS.)
+KS=${KEYSTORE:-key.jks}; PASS=${KEYSTORE_PASS:-tvhome123}
+[ -f "$KS" ] || keytool -genkeypair -keystore "$KS" -storepass "$PASS" -keypass "$PASS" -alias tvhome \
   -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=tvhome" >/dev/null 2>&1
-"$BT/apksigner" sign --ks key.jks --ks-pass pass:tvhome123 --out out/tvhome.apk out/aligned.apk
+"$BT/apksigner" sign --ks "$KS" --ks-pass "pass:$PASS" --out out/tvhome.apk out/aligned.apk
 echo "Built out/tvhome.apk"
