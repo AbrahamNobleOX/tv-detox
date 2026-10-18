@@ -4,6 +4,8 @@ A tiny, ad-free home screen for old Android TVs, plus the Claude Code prompt I u
 
 ![The home screen](docs/home-screen.png)
 
+*Example layout with US streaming apps. Your own apps and HDMI names show up on your TV.*
+
 My parents have an old Android TV with 2 GB of RAM. It was slow, and the home screen was full of sponsored rows you couldn't turn off.
 
 So I had Claude Code fix it from my laptop, over Wi-Fi. It turned off the bloatware and the tracking, uninstalled 11 apps nobody used, and built this home screen from scratch:
