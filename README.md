@@ -10,22 +10,34 @@
 
 ## How to do it (3 steps)
 
-**1. Turn on developer mode on your TV**
+### 1. Turn on developer mode on your TV
+
 Settings → Device Preferences → About → press **Build** 7 times. Then open the new **Developer options** and turn on **USB debugging**. ([Need more help?](#turning-on-developer-mode))
 
-**2. Get [Claude Code](https://claude.com/claude-code) on your laptop**
+### 2. Get [Claude Code](https://claude.com/claude-code) on your laptop
+
 Your laptop and TV must be on the same Wi-Fi.
 
-**3. Paste this into Claude Code**
+### 3. Paste this into Claude Code
 
 ```
-Help me clean up my Android TV and make it faster. My TV is a <brand and model>.
+Help me clean up my Android TV and make it faster.
+My TV is a <brand and model>.
 
-1. Connect to my TV over Wi-Fi. Walk me through anything I need to tap on the TV.
-2. Before changing anything, list every app in plain English: safe to turn off, needed by the TV, and apps I use. Check free memory.
-3. Ask me before every change. Turn apps off instead of deleting them. Never turn off Google Play, the keyboard, Bluetooth or my HDMI inputs. Keep a list of what you changed and how to undo it.
-4. Install the home screen from https://github.com/Ansub/android-tv-home with these apps: <your apps>.
-5. Turn off animations and the screensaver, and make the TV sleep after 5 minutes.
+1. Connect to my TV over Wi-Fi. Walk me through anything
+   I need to tap on the TV.
+2. Before changing anything, list every app in plain English:
+   safe to turn off, needed by the TV, and apps I use.
+   Check free memory.
+3. Ask me before every change. Turn apps off instead of
+   deleting them. Never turn off Google Play, the keyboard,
+   Bluetooth or my HDMI inputs. Keep a list of what you
+   changed and how to undo it.
+4. Install the home screen from
+   https://github.com/Ansub/android-tv-home
+   with these apps: <your apps>.
+5. Turn off animations and the screensaver, and make the TV
+   sleep after 5 minutes.
 6. Restart the TV and show me free memory before and after.
 ```
 
