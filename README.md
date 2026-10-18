@@ -23,6 +23,12 @@ Claude Code or Codex does the work. You just press OK on the remote.
 </tr>
 </table>
 
+## Watch it work
+
+<a href="https://www.youtube.com/watch?v=fP2SGGVsaB0"><img src="https://img.youtube.com/vi/fP2SGGVsaB0/maxresdefault.jpg" alt="Watch: Claude Made My Old Android TV Feel Brand New" width="100%"></a>
+
+**[▶ Claude Made My Old Android TV Feel Brand New](https://www.youtube.com/watch?v=fP2SGGVsaB0)** · the full setup on a real TV, in 4 minutes.
+
 ## Get started
 
 **1. Turn on developer mode on the TV.**
@@ -133,7 +139,7 @@ This turns your TV's own home screen back on and removes this one. To undo the c
 
 HDMI inputs are found on their own. Keep `key.jks`, which is made on your first build: updates must be signed with the same key.
 
-It's one screen of plain Java, no libraries, no Gradle. The background is drawn once, the only animation is the focus lift, and it uses about 12 MB of RAM.
+It's one screen of plain Java, no libraries, no Gradle. The background is drawn once, the only animation is the focus lift, and it uses about 30 MB of RAM.
 
 </details>
 
