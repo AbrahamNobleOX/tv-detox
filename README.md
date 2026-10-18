@@ -1,98 +1,77 @@
 # Android TV Home
 
-A tiny, ad-free home screen for old Android TVs, plus the Claude Code prompt I used to clean up my parents' TV.
+**Make an old, slow Android TV fast again, with Claude doing the work.**
 
 ![The home screen](docs/home-screen.png)
 
-*Example layout with US streaming apps. Your own apps and HDMI names show up on your TV.*
+- **Removes the junk:** bloatware, ads and sponsored rows, gone.
+- **Gives you this home screen:** your apps, your HDMI inputs and a clock. Nothing else.
+- **Undo anytime:** nothing is deleted for good.
 
-My parents have an old Android TV with 2 GB of RAM. It was slow, and the home screen was full of sponsored rows you couldn't turn off.
+## How to do it (3 steps)
 
-So I had Claude Code fix it from my laptop, over Wi-Fi. It turned off the bloatware and the tracking, uninstalled 11 apps nobody used, and built this home screen from scratch:
+**1. Turn on developer mode on your TV**
+Settings → Device Preferences → About → press **Build** 7 times. Then open the new **Developer options** and turn on **USB debugging**. ([Need more help?](#turning-on-developer-mode))
 
-- A big clock and the date
-- One row with your streaming apps
-- One row with the Play Store, your HDMI inputs and Settings
-- A plain, still background. No ads, no recommendations, no video
-- About 12 MB of RAM
+**2. Get [Claude Code](https://claude.com/claude-code) on your laptop**
+Your laptop and TV must be on the same Wi-Fi.
 
-## Disclaimer
+**3. Paste this into Claude Code**
 
-This is just what worked for us, not professional advice. Try it at your own risk. You're responsible for your own TV, and I'm not liable if something goes wrong.
+```
+Help me clean up my Android TV and make it faster. My TV is a <brand and model>.
 
-## Before you start
+1. Connect to my TV over Wi-Fi. Walk me through anything I need to tap on the TV.
+2. Before changing anything, list every app in plain English: safe to turn off, needed by the TV, and apps I use. Check free memory.
+3. Ask me before every change. Turn apps off instead of deleting them. Never turn off Google Play, the keyboard, Bluetooth or my HDMI inputs. Keep a list of what you changed and how to undo it.
+4. Install the home screen from https://github.com/Ansub/android-tv-home with these apps: <your apps>.
+5. Turn off animations and the screensaver, and make the TV sleep after 5 minutes.
+6. Restart the TV and show me free memory before and after.
+```
 
-Your laptop needs a way to talk to the TV. It takes about two minutes. Menu names differ a little by brand.
+That's it. Claude does the rest and asks you before each change.
+
+> **Disclaimer:** this is just what worked for us, not professional advice. Try it at your own risk. You're responsible for your own TV, and I'm not liable if something goes wrong.
+
+---
+
+## More help
+
+### Turning on developer mode
 
 1. On the TV, open **Settings**, then **Device Preferences** (or **System**), then **About**.
-2. Scroll to **Build** and press OK on it 7 times. You'll see "You are now a developer."
-3. Go back one step. Open the new **Developer options** menu and turn on **USB debugging**. If you see **Network debugging** or **Wireless debugging**, turn that on too.
-4. Find your TV's IP address: **Settings**, then **Network & Internet**, then your Wi-Fi network. It looks like `192.168.1.25`.
-5. Make sure your laptop is on the same Wi-Fi as the TV, and install [Claude Code](https://claude.com/claude-code).
-6. The first time your laptop connects, the TV asks "Allow debugging?" Tick "Always allow from this computer" and press Allow.
+2. Press OK on **Build** 7 times until you see "You are now a developer."
+3. Go back, open **Developer options** and turn on **USB debugging**. If you see **Network debugging** or **Wireless debugging**, turn that on too.
+4. The first time your laptop connects, the TV asks "Allow debugging?" Tick "Always allow" and press **Allow**.
 
-Not sure how your TV does it? Tell Claude your TV's brand and model, and ask:
+Menus differ a bit by brand. If you're stuck, ask Claude: *"I have a \<brand and model\> TV. How can you connect to it from my laptop and take control of it?"*
 
-> I have a \<brand and model\> TV. How can you connect to it from my laptop and take control of it? Walk me through every step.
+### The TV still opens Live TV or HDMI when it turns on
 
-## Clean up your TV with Claude
+That's a TV setting, not this home screen. Ask Claude: *"My TV opens Live TV at startup instead of the home screen. Find that setting and turn it off."*
 
-Paste this into Claude Code on your laptop:
+### Undo
 
-> I want to clean up my Android TV and make it faster. Its IP address is \<TV_IP\>. Help me connect to it over Wi-Fi first, and walk me through anything I need to tap on the TV.
->
-> Then, before changing anything, show me every app on the TV in plain English, split into three lists: safe to turn off, needed by the TV, and apps I use. Also check how much free memory it has right now.
->
-> Ask me before every change. Turn apps off instead of deleting them, so I can undo anything later. Never turn off Google Play, the keyboard, Bluetooth (my remote needs it) or anything my HDMI inputs need. Keep a list of everything you change and how to undo it.
->
-> When that's done, restart the TV, make sure everything stayed off, and show me free memory before and after.
->
-> Finally, turn off animations and the screensaver, and make the TV go to sleep after 5 minutes.
+Ask Claude to undo everything from its list, or run `sh undo.sh <TV_IP>` to remove just the home screen. If your TV's original home screen was turned off, turn it back on first.
 
-Two tips: let it ask before every change, and never turn off Google Play or the keyboard.
+<details>
+<summary><b>For developers: build it yourself</b></summary>
 
-## Install the home screen
-
-The easy way: open this folder in Claude Code and say
-
-> Build this home screen with my apps and install it on my TV at \<TV_IP\>.
-
-Or do it yourself:
-
-1. Put your apps in `apps.txt`, one per line, in the order you want. Only the first six show.
+1. Put your apps in `apps.txt` (package names, one per line, first six show).
 2. Install Java 17 and the Android SDK. On a Mac:
    ```sh
    brew install openjdk@17
    brew install --cask android-commandlinetools
    sdkmanager "platforms;android-28" "build-tools;34.0.0"
    ```
-3. Build and install:
-   ```sh
-   sh install.sh <TV_IP>
-   ```
+3. Build and install: `sh install.sh <TV_IP>`
 
-Your HDMI inputs show up on their own, with the names you gave them in the TV's settings.
+HDMI inputs are found on their own. Keep `key.jks`, which is made on your first build: updates must be signed with the same key.
 
-**Keep `key.jks`.** It's made on your first build, and every update has to be signed with the same key.
+It's one screen of plain Java, no libraries, no Gradle. The background is drawn once, the only animation is the focus lift, and it uses about 12 MB of RAM.
 
-### If your TV still opens Live TV or an HDMI input at startup
+</details>
 
-Some TVs jump to their last input when they turn on. That's a TV setting, not the home screen. Ask Claude: "My TV opens Live TV at startup instead of the home screen. Find the setting that does that and turn it off."
+---
 
-### Undo
-
-```sh
-sh undo.sh <TV_IP>
-```
-
-If you turned off your TV's original launcher, turn it back on first, or the TV will have no home screen.
-
-## How it works
-
-It's one screen of plain Java with no libraries, built straight from the command line (no Android Studio, no Gradle). The background is drawn once and never moves. The only animation is the lift when you move between apps. The app list rebuilds only when you install or remove an app.
-
-Made by [Ansub Khan](https://www.youtube.com/@ansubkhan). I build things like this with AI on YouTube.
-
-## License
-
-MIT
+Made by [Ansub Khan](https://www.youtube.com/@ansubkhan). I build things like this with AI on YouTube. · MIT License
