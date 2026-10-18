@@ -1,4 +1,4 @@
-# Android TV Home
+# TV Detox
 
 **Make an old, slow Android TV fast again, with Claude Code or Codex doing the work.**
 
@@ -36,7 +36,7 @@ My TV is a <brand and model>.
    Bluetooth or my HDMI inputs. Keep a list of what you
    changed and how to undo it.
 4. Install the home screen: download
-   https://github.com/Ansub/android-tv-home and run its
+   https://github.com/Ansub/tv-detox and run its
    install.sh with my TV and these apps: <your apps>.
 5. Turn off animations and the screensaver, and make the TV
    sleep after 5 minutes.
