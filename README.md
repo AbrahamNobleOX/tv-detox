@@ -1,6 +1,6 @@
 # Android TV Home
 
-**Make an old, slow Android TV fast again, with Claude doing the work.**
+**Make an old, slow Android TV fast again, with Claude Code or Codex doing the work.**
 
 ![The home screen](docs/home-screen.png)
 
@@ -14,11 +14,11 @@
 
 Settings → Device Preferences → About → press **Build** 7 times. Then open the new **Developer options** and turn on **USB debugging**. ([Need more help?](#turning-on-developer-mode))
 
-### 2. Get [Claude Code](https://claude.com/claude-code) on your laptop
+### 2. Get [Claude Code](https://claude.com/claude-code) or [Codex](https://openai.com/codex) on your laptop
 
 Your laptop and TV must be on the same Wi-Fi.
 
-### 3. Paste this into Claude Code
+### 3. Paste this in
 
 ```
 Help me clean up my Android TV and make it faster.
@@ -41,7 +41,7 @@ My TV is a <brand and model>.
 6. Restart the TV and show me free memory before and after.
 ```
 
-That's it. Claude does the rest and asks you before each change.
+That's it. It does the rest and asks you before each change.
 
 > **Disclaimer:** this is just what worked for us, not professional advice. Try it at your own risk. You're responsible for your own TV, and I'm not liable if something goes wrong.
 
@@ -56,15 +56,15 @@ That's it. Claude does the rest and asks you before each change.
 3. Go back, open **Developer options** and turn on **USB debugging**. If you see **Network debugging** or **Wireless debugging**, turn that on too.
 4. The first time your laptop connects, the TV asks "Allow debugging?" Tick "Always allow" and press **Allow**.
 
-Menus differ a bit by brand. If you're stuck, ask Claude: *"I have a \<brand and model\> TV. How can you connect to it from my laptop and take control of it?"*
+Menus differ a bit by brand. If you're stuck, ask Claude or Codex: *"I have a \<brand and model\> TV. How can you connect to it from my laptop and take control of it?"*
 
 ### The TV still opens Live TV or HDMI when it turns on
 
-That's a TV setting, not this home screen. Ask Claude: *"My TV opens Live TV at startup instead of the home screen. Find that setting and turn it off."*
+That's a TV setting, not this home screen. Ask it: *"My TV opens Live TV at startup instead of the home screen. Find that setting and turn it off."*
 
 ### Undo
 
-Ask Claude to undo everything from its list, or run `sh undo.sh <TV_IP>` to remove just the home screen. If your TV's original home screen was turned off, turn it back on first.
+Ask it to undo everything from its list, or run `sh undo.sh <TV_IP>` to remove just the home screen. If your TV's original home screen was turned off, turn it back on first.
 
 <details>
 <summary><b>For developers: build it yourself</b></summary>
