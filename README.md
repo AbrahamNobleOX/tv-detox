@@ -56,7 +56,9 @@ My TV is a <brand and model>.
    System UI, setup apps, the keyboard, Bluetooth, my HDMI
    inputs, the TV's input and tuner framework, or anything
    else the TV needs to start. If you're not sure, leave
-   it on.
+   it on. The one exception: if install.sh offers to turn
+   off Google TV's setup app because it's taking over Home,
+   ask me first.
 5. Install the home screen: download
    https://github.com/Ansub/tv-detox and run its
    install.sh with my TV and these apps: <your apps>.
@@ -125,7 +127,24 @@ If your TV or streaming box runs Android TV or Google TV, it should work. That i
 It runs the same Google TV this is tested on, so it should work. People who've done it report two things:
 
 - The YouTube button on the remote can stop working, and some lose casting. Tell Claude to keep casting on if you use it.
-- Google TV can bring its own home screen back. If that happens, ask Claude to turn off Google TV's home screen. Leave its setup app on: the TV needs it to start.
+- Google TV can bring its own home screen back. If that happens, ask Claude to turn off Google TV's home screen. Leave its setup app on unless it's taking over Home (see below).
+
+</details>
+
+<details>
+<summary><b>Home opens Google TV's setup screen instead (Sony BRAVIA and others)</b></summary>
+<br>
+
+On some Google TVs, once Google TV's home screen (`com.google.android.apps.tv.launcherx`) is off, Android picks the setup app (`com.google.android.tungsten.setupwraith`) for Home instead. `install.sh` spots this and asks before turning the setup app off too. It only asks if Home opens exactly that app, Google TV's home screen is already off and the TV has finished its first setup. `YES=1` doesn't turn it off; use `YES_SETUP=1` for that. This worked on a Sony BRAVIA, but it hasn't been tested on every TV. `undo.sh` turns it back on.
+
+To undo it by hand:
+
+```sh
+adb shell pm enable com.google.android.tungsten.setupwraith
+adb shell pm enable com.google.android.apps.tv.launcherx
+```
+
+If the TV ever asks to be set up again, or a setup screen won't finish, turn the setup app back on first.
 
 </details>
 
