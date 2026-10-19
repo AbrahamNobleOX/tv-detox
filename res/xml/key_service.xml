@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- KeyService only needs to see key presses. -->
-<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:canRequestFilterKeyEvents="true"
-    android:accessibilityFlags="flagRequestFilterKeyEvents"
-    android:accessibilityEventTypes="typeWindowStateChanged"
-    android:notificationTimeout="1000" />

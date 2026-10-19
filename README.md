@@ -159,7 +159,7 @@ Yes. Leave out step 4 of the prompt ("Install the home screen"). Your TV looks t
 <summary><b>Why not just use Projectivy Launcher?</b></summary>
 <br>
 
-You can. The cleanup is the part that makes the TV faster, and it works with any home screen. This one is here if you want something tiny and open source: one screen, no ads, no account, about 30 MB of RAM. Free memory is shown under the clock.
+You can. The cleanup is the part that makes the TV faster, and it works with any home screen. This one is here if you want something tiny and open source: one screen, no ads, no account, about 30 MB of RAM.
 
 </details>
 
@@ -176,8 +176,6 @@ That's a TV setting, not this home screen. Ask it: *"My TV opens Live TV at star
 <br>
 
 Some remote buttons are handled by the TV's own home screen or by apps the cleanup turned off. To see which app handles which button, ask Claude: *"Run `adb shell dumpsys window policy` and tell me which apps my remote's global keys go to."* Then turn that app back on.
-
-The YouTube button on Xiaomi remotes goes to Google TV's home screen. This home screen takes that button over and opens the YouTube app. `install.sh` switches this on only when your YouTube button went to the home screen it turned off. It's an accessibility service called "Home: remote buttons", and `undo.sh` turns it off again.
 
 </details>
 

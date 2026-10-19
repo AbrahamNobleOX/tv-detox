@@ -36,17 +36,14 @@ is_off() { sh_tv pm list packages -d "$1" | grep -qx "package:$1"; }
 installed() { sh_tv pm list packages "$1" | grep -qx "package:$1"; }
 
 ME=com.ansub.tvhome/.MainActivity
-KEYS=com.ansub.tvhome/com.ansub.tvhome.KeyService
 home() { sh_tv cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1; }
 echo "Home screen"
-check "Home opens this home screen" '[ "$(home)" = "$ME" ]' \
-  'sh_tv cmd role add-role-holder --user 0 android.app.role.HOME com.ansub.tvhome; sh_tv cmd package set-home-activity "$ME"'
+# The TV's own launchers first: while one is on, Home can't be fixed.
 for p in $(sh_tv cat /data/local/tmp/tvhome-disabled.txt 2>/dev/null | sort -u); do
   check "$p stays off" "is_off $p" "sh_tv pm disable-user --user 0 $p"
 done
-[ -z "$(sh_tv cat /data/local/tmp/tvhome-keys.txt 2>/dev/null)" ] || check "remote buttons service" 'sh_tv settings get secure enabled_accessibility_services | grep -q "$KEYS"' \
-  'on=$(sh_tv settings get secure enabled_accessibility_services); case "$on" in null|"") on=$KEYS ;; *) on="$on:$KEYS" ;; esac
-   sh_tv settings put secure enabled_accessibility_services "$on"; sh_tv settings put secure accessibility_enabled 1'
+check "Home opens this home screen" '[ "$(home)" = "$ME" ]' \
+  'sh_tv cmd role add-role-holder --user 0 android.app.role.HOME com.ansub.tvhome; sh_tv cmd package set-home-activity "$ME"'
 
 if [ -n "$LIST" ]; then
   echo "Your changes ($LIST)"
@@ -67,7 +64,6 @@ if [ -n "$LIST" ]; then
   rm -f "${TMPDIR:-/tmp}/tvcheck.$$"
 fi
 
-echo "Free memory: $(sh_tv cat /proc/meminfo | awk '/MemAvailable/ {printf "%d MB", $2 / 1024}')"
 if [ "$bad" -gt 0 ]; then
   [ -n "$FIX" ] && echo "$bad thing(s) could not be fixed." || echo "$bad thing(s) changed back. Run again with --fix to put them right."
   exit 1

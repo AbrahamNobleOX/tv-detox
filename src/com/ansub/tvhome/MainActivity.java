@@ -1,7 +1,6 @@
 package com.ansub.tvhome;
 
 import android.app.Activity;
-import android.app.ActivityManager;
 import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -25,8 +24,6 @@ import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -87,21 +84,10 @@ public class MainActivity extends Activity {
     private final List<String> rowApps = new ArrayList<>(); // the top row as shown, in order
     private String movingKey;   // the app being moved with left/right, if any
     private TextView moveHint;  // shown above the apps while moving
-    private TextView freeMemory; // under the clock, so you can see when the TV is running low
     private boolean longPressed; // OK was held: swallow the key-up so the app doesn't open
 
     private final BroadcastReceiver packagesChanged = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { dirty = true; }
-    };
-
-    // Keeps the free memory under the clock current.
-    private static final long CHECK_MS = 60 * 1000L;
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable everyMinute = new Runnable() {
-        @Override public void run() {
-            handler.postDelayed(this, CHECK_MS);
-            showFreeMemory();
-        }
     };
 
     @Override
@@ -132,10 +118,6 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-2, -2);
         tp.topMargin = px(-20); // pull the big digits up under the date
         clock.addView(time, tp);
-        freeMemory = text(px(26), 0x80FFFFFF, regular);
-        LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(-2, -2);
-        mp.topMargin = px(14);
-        clock.addView(freeMemory, mp);
         root.addView(clock, at(px(MARGIN), px(92), -2, -2));
 
         moveHint = text(px(24), 0xA8FFFFFF, regular);
@@ -217,21 +199,6 @@ public class MainActivity extends Activity {
         }
         View f = getCurrentFocus();
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
-        handler.removeCallbacks(everyMinute);
-        everyMinute.run();
-    }
-
-    @Override
-    protected void onPause() {
-        handler.removeCallbacks(everyMinute); // no need to keep checking while an app is open
-        super.onPause();
-    }
-
-    private void showFreeMemory() {
-        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
-        ((ActivityManager) getSystemService(Context.ACTIVITY_SERVICE)).getMemoryInfo(mi);
-        long mb = mi.availMem / (1024 * 1024);
-        freeMemory.setText(mb >= 1024 ? String.format(java.util.Locale.US, "%.1f GB free", mb / 1024f) : mb + " MB free");
     }
 
     @Override
@@ -748,7 +715,7 @@ public class MainActivity extends Activity {
         catch (PackageManager.NameNotFoundException e) { return false; }
     }
 
-    static Intent launchIntent(PackageManager pm, String pkg) {
+    private static Intent launchIntent(PackageManager pm, String pkg) {
         Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
         return i != null ? i : pm.getLaunchIntentForPackage(pkg);
     }
