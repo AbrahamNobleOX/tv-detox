@@ -137,8 +137,9 @@ fi
 # off, the TV has finished its first setup, and the system doesn't keep it always running.
 # YES=1 doesn't cover it: it needs its own answer, or YES_SETUP=1.
 LAUNCHERX=com.google.android.apps.tv.launcherx
+off_list=$(sh_tv pm list packages -d "$LAUNCHERX" 2>/dev/null) || off_list=
 if [ "$(current_home | sed 's|/.*||')" = "$WRAITH" ] \
-    && ! sh_tv pm list packages -e "$LAUNCHERX" | grep -Fqx "package:$LAUNCHERX"; then
+    && printf '%s\n' "$off_list" | grep -Fqx "package:$LAUNCHERX"; then
   flags=$(sh_tv dumpsys package "$WRAITH" 2>/dev/null | sed -n '/pkgFlags=\[/{p;q;}')
   [ -n "$flags" ] || flags=PERSISTENT
   if [ "$(sh_tv settings get global device_provisioned)" != 1 ] || [ "$(sh_tv settings get secure user_setup_complete)" != 1 ]; then
