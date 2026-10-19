@@ -26,6 +26,7 @@ import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
 import android.net.NetworkRequest;
+import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -72,7 +73,8 @@ public class MainActivity extends Activity {
     private static final String PLAY_STORE = "com.android.vending";
     private static final String SETTINGS = "settings";
     private static final String ADD = "add";
-    private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home"};
+    private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home", "Uninstall"};
+    private static final String[] EDIT_ITEMS_SYSTEM = {"Move", "Replace", "Remove from home", "App info"};
     private static final int PER_ROW = 6, MAX_INPUTS = 4;
 
     // Settings shortcuts: name, label, icon. Tile keys are QUICK + name.
@@ -762,13 +764,22 @@ public class MainActivity extends Activity {
 
     // Hold OK (or Menu) on a top-row app: move it, swap it for another, or take it off the home
     // screen. Removing only takes the tile away: the app stays installed and can be added back.
+    // Apps the user installed can also be uninstalled; Android asks to confirm, and the tile goes
+    // once the app is gone. Apps that came with the TV can't be, so they get App info instead,
+    // where Android offers to turn them off.
     private void showEditMenu(final String key) {
         final int index = rowApps.indexOf(key);
         if (index < 0) return;
-        dropdown(tile(key), EDIT_ITEMS, which -> {
+        final boolean user = userInstalled(key);
+        dropdown(tile(key), user ? EDIT_ITEMS : EDIT_ITEMS_SYSTEM, which -> {
             if (which == 0) startMove(key);
             else if (which == 1) showAddMenu(index);
-            else {
+            else if (which == 3) {
+                Uri pkg = Uri.parse("package:" + key);
+                try { startActivity(user ? new Intent(Intent.ACTION_DELETE, pkg)
+                        : new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)); }
+                catch (Exception ignored) {}
+            } else {
                 rowApps.remove(index);
                 saveRow();
                 focusedKey = rowApps.isEmpty() ? ADD : rowApps.get(Math.min(index, rowApps.size() - 1));
@@ -902,6 +913,11 @@ public class MainActivity extends Activity {
         if (custom != null && custom.length() > 0) return custom.toString();
         CharSequence label = in.loadLabel(this);
         return label != null && label.length() > 0 ? label.toString() : "HDMI";
+    }
+
+    private boolean userInstalled(String pkg) {
+        try { return (getPackageManager().getApplicationInfo(pkg, 0).flags & ApplicationInfo.FLAG_SYSTEM) == 0; }
+        catch (PackageManager.NameNotFoundException e) { return false; }
     }
 
     private static Intent launchIntent(PackageManager pm, String pkg) {

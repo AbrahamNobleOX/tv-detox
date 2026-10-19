@@ -23,6 +23,8 @@
         <intent><action android:name="android.settings.DISPLAY_SETTINGS" /></intent>
         <package android:name="com.tcl.settings" />
     </queries>
+    <!-- Lets "Uninstall" in the app menu open Android's uninstall prompt. -->
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-feature android:name="android.software.leanback" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
     <application android:label="Home" android:allowBackup="false"

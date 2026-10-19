@@ -172,6 +172,28 @@ That's a TV setting, not this home screen. Ask it: *"My TV opens Live TV at star
 </details>
 
 <details>
+<summary><b>A button on the remote stopped working</b></summary>
+<br>
+
+Some remote buttons are handled by the TV's own home screen or by apps the cleanup turned off. To see which app handles which button, ask Claude: *"Run `adb shell dumpsys window policy` and tell me which apps my remote's global keys go to."* Then turn that app back on.
+
+</details>
+
+<details>
+<summary><b>An update turned something back on</b></summary>
+<br>
+
+```sh
+sh check.sh <TV_IP>                  # check the home screen is still in charge
+sh check.sh <TV_IP> --fix            # and fix it
+sh check.sh <TV_IP> --fix my-tv.txt  # also check your own list of changes
+```
+
+Your list has one change per line, like `off com.example.app`, `global window_animation_scale 0` or `device_config activity_manager max_cached_processes 4`. Ask Claude to write it from the changes it made.
+
+</details>
+
+<details>
 <summary><b>Can I install the home screen without AI?</b></summary>
 <br>
 
@@ -196,6 +218,8 @@ Use the remote. Hold **OK** on an app (or press **Menu**) to:
 - **Move** it: use the arrows to slide it to a new spot, then press **OK** to finish.
 - **Replace** it: pick another app to take its place.
 - **Remove** it from the home screen. The app stays installed, and you can add it back any time.
+- **Uninstall** it, for apps you installed yourself. The TV asks you to confirm first.
+- **App info**, for apps that came with the TV. They can't be uninstalled, but from there you can turn them off.
 
 To add an app, pick the **Add app** tile in the bottom row. Add as many apps as you like: they wrap into rows of six, and the page scrolls once there are more than twelve. Your changes are kept until you run `install.sh` with a new app list.
 
@@ -247,6 +271,10 @@ HDMI inputs are found on their own. Keep `key.jks`, which is made on your first 
 It's one screen of plain Java, no libraries, no Gradle. The background is drawn once, the only animation is the focus lift, and it uses about 30 MB of RAM.
 
 </details>
+
+## Contributing
+
+Pull requests are welcome for fixes that keep working on every TV. This project sticks to official apps and Android's own settings, so changes that add ad blockers or unofficial apps won't be merged. If you want those, fork it and make it yours.
 
 ---
 
