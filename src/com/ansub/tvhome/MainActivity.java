@@ -22,7 +22,12 @@ import android.graphics.drawable.LayerDrawable;
 import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.Uri;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.TypedValue;
@@ -57,6 +62,10 @@ public class MainActivity extends Activity {
     // Missing apps are skipped. Topping up stops at six apps, but a chosen list can be any length:
     // apps wrap into rows of six, like Apple TV, and the page scrolls down once they don't all fit.
     // On the TV, hold OK on an app (or press Menu) to move or remove it, or add another; that saves list 1.
+    // A network tile always sits at the top right, level with the clock. Settings shortcuts can join
+    // it there, off until picked the same way:
+    //   --es quick "bluetooth,sound,picture"
+    // (--es quick none  takes them away again; "wifi" and "ethernet" are the network tile now).
     private static final String PREFS = "config";
     private static final List<String> NOT_APPS = Arrays.asList("com.android.vending", "com.android.tv.settings",
             "com.android.tv", "com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx",
@@ -68,10 +77,21 @@ public class MainActivity extends Activity {
     private static final String[] EDIT_ITEMS_SYSTEM = {"Move", "Replace", "Remove from home", "App info"};
     private static final int PER_ROW = 6, MAX_INPUTS = 4;
 
+    // Settings shortcuts: name, label, icon. Tile keys are QUICK + name.
+    private static final String QUICK = "quick:";
+    private static final String[] QUICK_NAMES = {"bluetooth", "sound", "picture"};
+    private static final String[] QUICK_LABELS = {"Bluetooth", "Sound", "Picture"};
+    private static final int[][] QUICK_ICONS = {LineIcon.BLUETOOTH, LineIcon.SOUND, LineIcon.PICTURE};
+    private static final String NETWORK = "network";
+    private static final int OFFLINE = 0, ETHERNET = 4; // network states; 1 to 3 are Wi-Fi bars
+    // TCL keeps its own Picture and Sound panels in a service; Android's Sound page is missing there.
+    private static final String TCL_SHOW_WINDOW = "com.tcl.settings.SHOW_WINDOW";
+
     // Layout is designed at 1920x1080 and scaled to the TV's real UI size by px().
     private static final int MARGIN = 96, GAP = 36, RADIUS = 22;
     private static final int ROW1_TOP = 604, ROW_STEP = 224;
     private static final int GRID_MIN_TOP = 400; // more rows push the grid up, but not into the clock
+    private static final int ICON_TOP = 76, ICON_BUTTON = 72, ICON_SIZE = 40, ICON_GAP = 12; // level with the date
     private float scale = 1f;
 
     private static Typeface regular, semibold;
@@ -88,6 +108,19 @@ public class MainActivity extends Activity {
 
     private final BroadcastReceiver packagesChanged = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { dirty = true; }
+    };
+
+    // The network tile follows the connection live: Wi-Fi bars, Ethernet or Offline. Only its icon and
+    // label change, so nothing is rebuilt.
+    private ImageView netIcon;
+    private int netState = -1;
+    private final ConnectivityManager.NetworkCallback networkChanged = new ConnectivityManager.NetworkCallback() {
+        @Override public void onAvailable(Network n) { runOnUiThread(MainActivity.this::refreshNetwork); }
+        @Override public void onLost(Network n) { runOnUiThread(MainActivity.this::refreshNetwork); }
+        // Also fires when the Wi-Fi signal gets stronger or weaker.
+        @Override public void onCapabilitiesChanged(Network n, NetworkCapabilities c) {
+            runOnUiThread(MainActivity.this::refreshNetwork);
+        }
     };
 
     @Override
@@ -134,11 +167,19 @@ public class MainActivity extends Activity {
         f.addDataScheme("package");
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(packagesChanged, f, Context.RECEIVER_EXPORTED);
         else registerReceiver(packagesChanged, f);
+
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm != null) try {
+            if (android.os.Build.VERSION.SDK_INT >= 24) cm.registerDefaultNetworkCallback(networkChanged);
+            else cm.registerNetworkCallback(new NetworkRequest.Builder().build(), networkChanged);
+        } catch (Exception ignored) {}
     }
 
     @Override
     protected void onDestroy() {
         unregisterReceiver(packagesChanged);
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm != null) try { cm.unregisterNetworkCallback(networkChanged); } catch (Exception ignored) {}
         super.onDestroy();
     }
 
@@ -149,20 +190,29 @@ public class MainActivity extends Activity {
         if (saveConfig(intent)) buildTiles();
     }
 
-    // Saves an app list passed with --es apps "...". Returns true if it changed.
+    // Saves an app list passed with --es apps "..." and shortcuts passed with --es quick "...".
+    // Returns true if it changed.
     // When Android kills the home screen in the background, it can start it again with the same old
     // intent; the stamp install.sh sends stops that from undoing changes made on the TV since.
     private boolean saveConfig(Intent intent) {
         String apps = intent == null ? null : intent.getStringExtra("apps");
-        if (apps == null) return false;
+        String quick = intent == null ? null : intent.getStringExtra("quick");
+        if (apps == null && quick == null) return false;
         SharedPreferences prefs = getSharedPreferences(PREFS, 0);
         String stamp = intent.getStringExtra("stamp");
         if (stamp != null && stamp.equals(prefs.getString("stamp", null))) return false;
-        apps = apps.trim();
         SharedPreferences.Editor e = prefs.edit();
         if (stamp != null) e.putString("stamp", stamp);
-        if (apps.isEmpty() || apps.equalsIgnoreCase("auto")) e.remove("apps");
-        else e.putString("apps", apps);
+        if (apps != null) {
+            apps = apps.trim();
+            if (apps.isEmpty() || apps.equalsIgnoreCase("auto")) e.remove("apps");
+            else e.putString("apps", apps);
+        }
+        if (quick != null) {
+            quick = quick.trim();
+            if (quick.isEmpty() || quick.equalsIgnoreCase("none")) e.remove("quick");
+            else e.putString("quick", quick);
+        }
         e.apply();
         dirty = true;
         return true;
@@ -197,6 +247,7 @@ public class MainActivity extends Activity {
             dirty = false;
             buildTiles();
         }
+        refreshNetwork();
         View f = getCurrentFocus();
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
     }
@@ -285,6 +336,21 @@ public class MainActivity extends Activity {
             addTile(root, in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, SETTINGS, "Settings", null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, ADD, "Add app", null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
+
+        // Plain icons at the top right, level with the date: any settings shortcuts picked, then the
+        // network icon. Added last, so the first app keeps first focus; Up from the apps reaches them.
+        List<Integer> quick = quickList();
+        int ib = px(ICON_BUTTON), ig = px(ICON_GAP);
+        // The last icon's right edge lines up with the apps' (its focus circle sticks out past them).
+        int qx = getResources().getDisplayMetrics().widthPixels - m + (ib - px(ICON_SIZE)) / 2
+                - (quick.size() + 1) * ib - quick.size() * ig;
+        for (int q : quick) {
+            addIcon(QUICK + QUICK_NAMES[q], QUICK_LABELS[q], new LineIcon(QUICK_ICONS[q]), qx);
+            qx += ib + ig;
+        }
+        netIcon = addIcon(NETWORK, "Network", null, qx);
+        netState = -1;
+        refreshNetwork();
 
         root.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         View restore = null;
@@ -384,6 +450,34 @@ public class MainActivity extends Activity {
         tiles.add(card);
     }
 
+    // An icon on its own, no tile or label: a glass circle shows behind it only while it's focused.
+    private ImageView addIcon(final String key, String label, Drawable icon, int x) {
+        int b = px(ICON_BUTTON), size = px(ICON_SIZE);
+        FrameLayout card = new FrameLayout(this);
+        final GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.OVAL);
+        bg.setColor(Color.TRANSPARENT);
+        card.setBackground(bg);
+        ImageView iv = new ImageView(this);
+        iv.setImageDrawable(icon);
+        card.addView(iv, new FrameLayout.LayoutParams(size, size, Gravity.CENTER));
+        card.setFocusable(true);
+        card.setTag(key);
+        card.setContentDescription(label);
+        card.setOnFocusChangeListener((v, has) -> {
+            if (has) focusedKey = key;
+            bg.setColor(has ? 0x38FFFFFF : Color.TRANSPARENT);
+            v.animate().scaleX(has ? 1.1f : 1f).scaleY(has ? 1.1f : 1f).setDuration(140).withLayer().start();
+        });
+        card.setOnClickListener(v -> open(key));
+        FrameLayout wrap = new FrameLayout(this);
+        wrap.setClipChildren(false);
+        wrap.addView(card, new FrameLayout.LayoutParams(b, b));
+        root.addView(wrap, at(x, px(ICON_TOP), b, b));
+        tiles.add(card);
+        return iv;
+    }
+
     private void open(String key) {
         Intent i;
         if (ADD.equals(key)) {
@@ -393,6 +487,12 @@ public class MainActivity extends Activity {
             i = new Intent(Settings.ACTION_SETTINGS);
         } else if (isInput(key)) {
             openInput(key);
+            return;
+        } else if (NETWORK.equals(key)) {
+            openNetworkSettings();
+            return;
+        } else if (key.startsWith(QUICK)) {
+            openQuick(key.substring(QUICK.length()));
             return;
         } else {
             i = launchIntent(getPackageManager(), key);
@@ -422,6 +522,111 @@ public class MainActivity extends Activity {
             t.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             try {
                 startActivity(t);
+                return;
+            } catch (Exception ignored) {}
+        }
+    }
+
+    // The shortcuts picked with --es quick, in that order, as indexes into QUICK_NAMES. A shortcut
+    // this TV has no screen for is left out, so it never shows a tile that does nothing.
+    private List<Integer> quickList() {
+        List<Integer> out = new ArrayList<>();
+        String saved = getSharedPreferences(PREFS, 0).getString("quick", null);
+        if (saved == null) return out;
+        for (String name : saved.split("[,\\s]+")) {
+            int q = Arrays.asList(QUICK_NAMES).indexOf(name.toLowerCase(java.util.Locale.ROOT));
+            if (q < 0 || out.contains(q) || quickIntents(QUICK_NAMES[q]).isEmpty()) continue;
+            out.add(q);
+        }
+        return out;
+    }
+
+    // OFFLINE, 1 to 3 for Wi-Fi with that many bars, or ETHERNET (any other link, which on a TV is a cable).
+    private int networkState() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return OFFLINE;
+        try {
+            int rssi = Integer.MIN_VALUE;
+            if (android.os.Build.VERSION.SDK_INT >= 23) {
+                NetworkCapabilities c = cm.getNetworkCapabilities(cm.getActiveNetwork());
+                if (c == null) return OFFLINE;
+                if (!c.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) return ETHERNET;
+                if (android.os.Build.VERSION.SDK_INT >= 29) rssi = c.getSignalStrength();
+            } else {
+                android.net.NetworkInfo ni = cm.getActiveNetworkInfo();
+                if (ni == null || !ni.isConnected()) return OFFLINE;
+                if (ni.getType() != ConnectivityManager.TYPE_WIFI) return ETHERNET;
+            }
+            if (rssi == Integer.MIN_VALUE) { // Android 9 and older: ask the Wi-Fi service
+                WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+                if (wm != null && wm.getConnectionInfo() != null) rssi = wm.getConnectionInfo().getRssi();
+            }
+            return 1 + WifiManager.calculateSignalLevel(rssi, 3);
+        } catch (Exception e) {
+            return OFFLINE;
+        }
+    }
+
+    private void refreshNetwork() {
+        if (netIcon == null) return;
+        int state = networkState();
+        if (state == netState) return;
+        netState = state;
+        if (state == ETHERNET) {
+            netIcon.setImageDrawable(new LineIcon(LineIcon.ETHERNET));
+        } else {
+            // The whole Wi-Fi fan dim, with the bars it has bright on top. Offline is a slash instead.
+            LineIcon fan = new LineIcon(LineIcon.WIFI);
+            fan.setAlpha(0x47);
+            int[] top = state == OFFLINE ? LineIcon.SLASH : state == 1 ? LineIcon.WIFI_1
+                    : state == 2 ? LineIcon.WIFI_2 : LineIcon.WIFI;
+            netIcon.setImageDrawable(new LayerDrawable(new Drawable[] {fan, new LineIcon(top)}));
+        }
+        ((View) netIcon.getParent()).setContentDescription(
+                state == OFFLINE ? "Offline" : state == ETHERNET ? "Ethernet" : "Wi-Fi");
+    }
+
+    // Wi-Fi settings (on Android TV that page lists Ethernet too), else the TV's network page, else Settings.
+    private void openNetworkSettings() {
+        for (String a : new String[] {Settings.ACTION_WIFI_SETTINGS, Settings.ACTION_WIRELESS_SETTINGS,
+                Settings.ACTION_SETTINGS}) {
+            try {
+                startActivity(new Intent(a).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                return;
+            } catch (Exception ignored) {}
+        }
+    }
+
+    // Screens a shortcut can open, best first, keeping only those this TV has.
+    private List<Intent> quickIntents(String name) {
+        List<Intent> all = new ArrayList<>();
+        String tclType = name.equals("sound") ? "SoundPreset" : name.equals("picture") ? "picture" : null;
+        if (tclType != null)
+            all.add(new Intent(TCL_SHOW_WINDOW).setClassName("com.tcl.settings", "com.tcl.settings.ShowWindowService")
+                    .putExtra("Type", tclType));
+        switch (name) {
+            case "bluetooth":
+                all.add(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
+                all.add(new Intent("com.google.android.intent.action.CONNECT_INPUT")); // Android TV's pairing screen
+                break;
+            case "sound": all.add(new Intent(Settings.ACTION_SOUND_SETTINGS)); break;
+            case "picture": all.add(new Intent(Settings.ACTION_DISPLAY_SETTINGS)); break;
+        }
+        PackageManager pm = getPackageManager();
+        List<Intent> out = new ArrayList<>();
+        for (Intent i : all) {
+            boolean service = TCL_SHOW_WINDOW.equals(i.getAction());
+            if (service ? pm.resolveService(i, 0) != null : i.resolveActivity(pm) != null) out.add(i);
+        }
+        return out;
+    }
+
+    // Opens a shortcut's screen: the first one that starts wins.
+    private void openQuick(String name) {
+        for (Intent i : quickIntents(name)) {
+            try {
+                if (TCL_SHOW_WINDOW.equals(i.getAction())) startService(i);
+                else startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 return;
             } catch (Exception ignored) {}
         }
