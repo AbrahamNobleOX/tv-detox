@@ -96,7 +96,7 @@ turn_off() {
       echo "Leaving $p on: couldn't save it for undo.sh." >&2; continue
     fi
     sh_tv pm disable-user --user 0 "$p" >/dev/null 2>&1 || true
-    is_off "$p" || echo "Couldn't turn $p off." >&2
+    if is_off "$p"; then turned_off="$turned_off $p"; else echo "Couldn't turn $p off." >&2; fi
   done
   # Android saves this a few seconds later. Restarting before then can undo it.
   echo "Saving the change on the TV, this takes 15 seconds…"
@@ -106,6 +106,8 @@ turn_off() {
 
 # Google TV's setup app. It's handled on its own below.
 WRAITH=com.google.android.tungsten.setupwraith
+LAUNCHERX=com.google.android.apps.tv.launcherx
+turned_off=""
 home_apps() { sh_tv cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null \
   | grep / | sed 's|/.*||; s/^ *//' | sort -u; }
 
@@ -136,7 +138,6 @@ fi
 # is off. It's only offered if Home opens exactly that app, Google TV's home screen is already
 # off, the TV has finished its first setup, and the system doesn't keep it always running.
 # YES=1 doesn't cover it: it needs its own answer, or YES_SETUP=1.
-LAUNCHERX=com.google.android.apps.tv.launcherx
 off_list=$(sh_tv pm list packages -d "$LAUNCHERX" 2>/dev/null) || off_list=
 if [ "$(current_home | sed 's|/.*||')" = "$WRAITH" ] \
     && printf '%s\n' "$off_list" | grep -Fqx "package:$LAUNCHERX"; then
@@ -163,9 +164,29 @@ if [ "$(current_home | sed 's|/.*||')" = "$WRAITH" ] \
   esac; fi
 fi
 
+# If Home still doesn't open us, what we turned off only left the TV without its home screen.
+# On Google TV the setup app's recovery screen then keeps restarting, and after a restart some
+# TVs never get past the logo (#14, #16). So turn it all back on before leaving.
+reverted=
+winner=$(current_home)
+if [ -n "$turned_off" ] && [ "$winner" != "$ME" ]; then
+  for p in $turned_off; do
+    sh_tv pm enable "$p" >/dev/null 2>&1 || true
+    if is_off "$p"; then echo "Couldn't turn $p back on. Run undo.sh." >&2; continue; fi
+    sh_tv "sed -i '/^$p\$/d' /data/local/tmp/tvhome-disabled.txt" || true
+    # Google TV's home screen can come back without its notification access (#16).
+    [ "$p" = "$LAUNCHERX" ] && sh_tv cmd notification allow_listener \
+      "$LAUNCHERX/.coreservices.notificationlistener.TvNotificationListenerService" >/dev/null 2>&1 || true
+  done
+  reverted=1
+  echo "Home opened $winner instead of this home screen, so what was turned off is back on."
+fi
+
 adb -s "$TV" shell input keyevent KEYCODE_HOME
 if [ "$(current_home)" = "$ME" ]; then
   echo "Done. Press Home on your remote to see it."
+elif [ -n "$reverted" ]; then
+  echo "Installed, but your TV's own home screen still opens when you press Home."
 else
   echo "Installed, but your TV still opens its own home screen. If it asks which home screen to use, pick \"Home\" and choose Always."
 fi
