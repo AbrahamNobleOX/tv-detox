@@ -90,7 +90,7 @@ fi
 
 # Some remotes (Xiaomi) send the YouTube button to the TV's own home screen, so it goes dead once
 # that's turned off. Only then, switch on a small service that catches the button and opens
-# SmartTube (or YouTube). Other TVs are left alone. undo.sh turns it back off.
+# YouTube. Other TVs are left alone. undo.sh turns it back off.
 KEYS=com.ansub.tvhome/com.ansub.tvhome.KeyService
 off=$(sh_tv cat /data/local/tmp/tvhome-disabled.txt 2>/dev/null | sort -u)
 yt=$(sh_tv dumpsys window policy 2>/dev/null | grep -o 'KEYCODE_BUTTON_3=[^/ ,}]*' | sed 's/.*=//; s/ComponentInfo{//' | head -1)
@@ -102,7 +102,7 @@ if [ -n "$yt" ] && echo "$off" | grep -qx "$yt" && ! echo "$on" | grep -q "$KEYS
     *)       sh_tv settings put secure enabled_accessibility_services "$on:$KEYS" ;;
   esac
   sh_tv settings put secure accessibility_enabled 1
-  echo "Your remote's YouTube button went to the home screen that was turned off. It now opens SmartTube or YouTube."
+  echo "Your remote's YouTube button went to the home screen that was turned off. It now opens YouTube."
 fi
 
 adb -s "$TV" shell input keyevent KEYCODE_HOME

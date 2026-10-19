@@ -12,13 +12,11 @@ import android.view.accessibility.AccessibilityEvent;
 
 // Some remotes send their YouTube button to Google TV's home screen, which install.sh turns off,
 // so the button stops working. Accessibility services see keys before that happens, so this one
-// catches the button and opens SmartTube (YouTube without ads), or YouTube when SmartTube isn't
-// installed. install.sh switches it on. Gamepads also have a "button 3", so they're left alone.
+// catches the button and opens the official YouTube app. install.sh switches it on. Gamepads also have a "button 3", so they're left alone.
 // While a service watches keys, Android stops repeating held keys, so holding volume moved it
 // only one step. The service repeats the volume step itself until the button is let go.
 public class KeyService extends AccessibilityService {
-    private static final String[] YOUTUBE = {"org.smarttube.stable", "org.smarttube.beta",
-            "com.teamsmart.videomanager.tv", "com.google.android.youtube.tv"};
+    private static final String YOUTUBE = "com.google.android.youtube.tv";
     private final Handler handler = new Handler(Looper.getMainLooper());
     private int heldVolumeKey;
     private final Runnable volumeRepeat = new Runnable() {
@@ -44,13 +42,10 @@ public class KeyService extends AccessibilityService {
             return false;
         }
         if (e.getKeyCode() != KeyEvent.KEYCODE_BUTTON_3 || e.isFromSource(InputDevice.SOURCE_GAMEPAD)) return false;
+        Intent i = MainActivity.launchIntent(getPackageManager(), YOUTUBE);
+        if (i == null) return false; // no YouTube app: leave the button to Android
         if (e.getAction() == KeyEvent.ACTION_UP) {
-            for (String p : YOUTUBE) {
-                Intent i = MainActivity.launchIntent(getPackageManager(), p);
-                if (i == null) continue;
-                try { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception ignored) {}
-                break;
-            }
+            try { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); } catch (Exception ignored) {}
         }
         return true;
     }
