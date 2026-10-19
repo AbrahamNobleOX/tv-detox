@@ -112,7 +112,13 @@ final class Strings {
     // The label in the TV's language, else the English one. Read on every call, so it follows the TV.
     static String t(String en) {
         Locale l = Locale.getDefault();
-        String[] table = LANGS.get(l.getLanguage() + "-" + l.getCountry());
+        String key = l.getLanguage() + "-" + l.getCountry();
+        // Chinese can name its script outright (zh-Hant, zh-Hans-HK): that wins over the country.
+        if ("zh".equals(l.getLanguage())) {
+            if ("Hant".equals(l.getScript())) key = "zh-TW";
+            else if ("Hans".equals(l.getScript())) key = "zh";
+        }
+        String[] table = LANGS.get(key);
         if (table == null) table = LANGS.get(l.getLanguage());
         if (table == null) return en;
         for (int i = 0; i < EN.length; i++) if (EN[i].equals(en)) return table[i];
