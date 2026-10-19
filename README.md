@@ -159,7 +159,7 @@ Yes. Leave out step 4 of the prompt ("Install the home screen"). Your TV looks t
 <summary><b>Why not just use Projectivy Launcher?</b></summary>
 <br>
 
-You can. The cleanup is the part that makes the TV faster, and it works with any home screen. This one is here if you want something tiny and open source: one screen, no ads, no account, about 30 MB of RAM.
+You can. The cleanup is the part that makes the TV faster, and it works with any home screen. This one is here if you want something tiny and open source: one screen, no ads, no account, about 30 MB of RAM. Free memory is shown under the clock.
 
 </details>
 
@@ -168,6 +168,30 @@ You can. The cleanup is the part that makes the TV faster, and it works with any
 <br>
 
 That's a TV setting, not this home screen. Ask it: *"My TV opens Live TV at startup instead of the home screen. Find that setting and turn it off."*
+
+</details>
+
+<details>
+<summary><b>A button on the remote stopped working</b></summary>
+<br>
+
+Some remote buttons are handled by the TV's own home screen or by apps the cleanup turned off. To see which app handles which button, ask Claude: *"Run `adb shell dumpsys window policy` and tell me which apps my remote's global keys go to."* Then turn that app back on.
+
+The YouTube button on Xiaomi remotes goes to Google TV's home screen. This home screen takes that button over and opens SmartTube (YouTube without ads) if it's installed, or YouTube if it isn't. `install.sh` switches this on, as an accessibility service called "Home: remote buttons".
+
+</details>
+
+<details>
+<summary><b>An update turned something back on</b></summary>
+<br>
+
+```sh
+sh check.sh <TV_IP>                  # check the home screen is still in charge
+sh check.sh <TV_IP> --fix            # and fix it
+sh check.sh <TV_IP> --fix my-tv.txt  # also check your own list of changes
+```
+
+Your list has one change per line, like `off com.example.app`, `global window_animation_scale 0` or `device_config activity_manager max_cached_processes 4`. Ask Claude to write it from the changes it made.
 
 </details>
 
@@ -195,6 +219,8 @@ Use the remote. Hold **OK** on an app (or press **Menu**) to:
 - **Move** it: use the arrows to slide it to a new spot, then press **OK** to finish.
 - **Replace** it: pick another app to take its place.
 - **Remove** it from the home screen. The app stays installed, and you can add it back any time.
+- **Uninstall** it, for apps you installed yourself. The TV asks you to confirm first.
+- **App info**, for apps that came with the TV. They can't be uninstalled, but from there you can turn them off.
 
 To add an app, pick the **Add app** tile in the bottom row. Add as many apps as you like: they wrap into rows of six, and the page scrolls once there are more than twelve. Your changes are kept until you run `install.sh` with a new app list.
 

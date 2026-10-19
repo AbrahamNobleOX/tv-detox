@@ -54,6 +54,17 @@ fi
 
 ME=com.ansub.tvhome/.MainActivity
 sh_tv() { adb -s "$TV" shell "$@" | tr -d '\r'; }
+
+# Turning off the TV's own home screen can leave the remote's YouTube button dead; this service
+# catches it and opens SmartTube (or YouTube). Added next to any accessibility services already on.
+KEYS=com.ansub.tvhome/com.ansub.tvhome.KeyService
+on=$(sh_tv settings get secure enabled_accessibility_services)
+case "$on" in
+  *"$KEYS"*) ;;
+  null|"") sh_tv settings put secure enabled_accessibility_services "$KEYS" ;;
+  *)       sh_tv settings put secure enabled_accessibility_services "$on:$KEYS" ;;
+esac
+sh_tv settings put secure accessibility_enabled 1
 current_home() { sh_tv cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1; }
 
 # Make it the default home: the role (Android 10+) and the classic way.

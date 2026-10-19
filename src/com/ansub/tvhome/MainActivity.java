@@ -1,6 +1,7 @@
 package com.ansub.tvhome;
 
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -22,7 +23,10 @@ import android.graphics.drawable.LayerDrawable;
 import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -63,7 +67,8 @@ public class MainActivity extends Activity {
     private static final String PLAY_STORE = "com.android.vending";
     private static final String SETTINGS = "settings";
     private static final String ADD = "add";
-    private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home"};
+    private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home", "Uninstall"};
+    private static final String[] EDIT_ITEMS_SYSTEM = {"Move", "Replace", "Remove from home", "App info"};
     private static final int PER_ROW = 6, MAX_INPUTS = 4;
 
     // Layout is designed at 1920x1080 and scaled to the TV's real UI size by px().
@@ -82,10 +87,21 @@ public class MainActivity extends Activity {
     private final List<String> rowApps = new ArrayList<>(); // the top row as shown, in order
     private String movingKey;   // the app being moved with left/right, if any
     private TextView moveHint;  // shown above the apps while moving
+    private TextView freeMemory; // under the clock, so you can see when the TV is running low
     private boolean longPressed; // OK was held: swallow the key-up so the app doesn't open
 
     private final BroadcastReceiver packagesChanged = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { dirty = true; }
+    };
+
+    // Keeps the free memory under the clock current.
+    private static final long CHECK_MS = 60 * 1000L;
+    private final Handler handler = new Handler(Looper.getMainLooper());
+    private final Runnable everyMinute = new Runnable() {
+        @Override public void run() {
+            handler.postDelayed(this, CHECK_MS);
+            showFreeMemory();
+        }
     };
 
     @Override
@@ -116,6 +132,10 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-2, -2);
         tp.topMargin = px(-20); // pull the big digits up under the date
         clock.addView(time, tp);
+        freeMemory = text(px(26), 0x80FFFFFF, regular);
+        LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(-2, -2);
+        mp.topMargin = px(14);
+        clock.addView(freeMemory, mp);
         root.addView(clock, at(px(MARGIN), px(92), -2, -2));
 
         moveHint = text(px(24), 0xA8FFFFFF, regular);
@@ -132,10 +152,12 @@ public class MainActivity extends Activity {
         f.addDataScheme("package");
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(packagesChanged, f, Context.RECEIVER_EXPORTED);
         else registerReceiver(packagesChanged, f);
+        handler.postDelayed(everyMinute, CHECK_MS);
     }
 
     @Override
     protected void onDestroy() {
+        handler.removeCallbacks(everyMinute);
         unregisterReceiver(packagesChanged);
         super.onDestroy();
     }
@@ -197,6 +219,14 @@ public class MainActivity extends Activity {
         }
         View f = getCurrentFocus();
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
+        showFreeMemory();
+    }
+
+    private void showFreeMemory() {
+        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+        ((ActivityManager) getSystemService(Context.ACTIVITY_SERVICE)).getMemoryInfo(mi);
+        long mb = mi.availMem / (1024 * 1024);
+        freeMemory.setText(mb >= 1024 ? String.format(java.util.Locale.US, "%.1f GB free", mb / 1024f) : mb + " MB free");
     }
 
     @Override
@@ -557,13 +587,22 @@ public class MainActivity extends Activity {
 
     // Hold OK (or Menu) on a top-row app: move it, swap it for another, or take it off the home
     // screen. Removing only takes the tile away: the app stays installed and can be added back.
+    // Apps the user installed can also be uninstalled; Android asks to confirm, and the tile goes
+    // once the app is gone. Apps that came with the TV can't be, so they get App info instead,
+    // where Android offers to turn them off.
     private void showEditMenu(final String key) {
         final int index = rowApps.indexOf(key);
         if (index < 0) return;
-        dropdown(tile(key), EDIT_ITEMS, which -> {
+        final boolean user = userInstalled(key);
+        dropdown(tile(key), user ? EDIT_ITEMS : EDIT_ITEMS_SYSTEM, which -> {
             if (which == 0) startMove(key);
             else if (which == 1) showAddMenu(index);
-            else {
+            else if (which == 3) {
+                Uri pkg = Uri.parse("package:" + key);
+                try { startActivity(user ? new Intent(Intent.ACTION_DELETE, pkg)
+                        : new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, pkg)); }
+                catch (Exception ignored) {}
+            } else {
                 rowApps.remove(index);
                 saveRow();
                 focusedKey = rowApps.isEmpty() ? ADD : rowApps.get(Math.min(index, rowApps.size() - 1));
@@ -699,7 +738,12 @@ public class MainActivity extends Activity {
         return label != null && label.length() > 0 ? label.toString() : "HDMI";
     }
 
-    private static Intent launchIntent(PackageManager pm, String pkg) {
+    private boolean userInstalled(String pkg) {
+        try { return (getPackageManager().getApplicationInfo(pkg, 0).flags & ApplicationInfo.FLAG_SYSTEM) == 0; }
+        catch (PackageManager.NameNotFoundException e) { return false; }
+    }
+
+    static Intent launchIntent(PackageManager pm, String pkg) {
         Intent i = pm.getLeanbackLaunchIntentForPackage(pkg);
         return i != null ? i : pm.getLaunchIntentForPackage(pkg);
     }
