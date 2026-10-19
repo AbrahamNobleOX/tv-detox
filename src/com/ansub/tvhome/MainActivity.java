@@ -100,7 +100,7 @@ public class MainActivity extends Activity {
     private int tileW, tileH, gridTop; // app grid geometry, set by buildTiles
     private final List<View> tiles = new ArrayList<>();
     private boolean dirty = true;
-    private String shownLang; // the TV's language when the page was built
+    private java.util.Locale shownLocale; // the TV's language (and region) when the page was built
     private String focusedKey;
     private final List<String> rowApps = new ArrayList<>(); // the top row as shown, in order
     private String movingKey;   // the app being moved with left/right, if any
@@ -143,7 +143,7 @@ public class MainActivity extends Activity {
 
         LinearLayout clock = new LinearLayout(this);
         clock.setOrientation(LinearLayout.VERTICAL);
-        shownLang = Strings.lang();
+        shownLocale = java.util.Locale.getDefault();
         String day = Strings.datePattern();
         TextClock date = clock(day, day, px(30), 0xA8FFFFFF, regular);
         TextClock time = clock("h:mm", "H:mm", px(176), Color.WHITE, semibold);
@@ -259,7 +259,7 @@ public class MainActivity extends Activity {
     @Override
     public void onConfigurationChanged(android.content.res.Configuration c) {
         super.onConfigurationChanged(c);
-        if (!Strings.lang().equals(shownLang)) recreate();
+        if (!java.util.Locale.getDefault().equals(shownLocale)) recreate();
     }
 
     @Override
