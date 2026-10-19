@@ -89,14 +89,77 @@ Android TV 9 (a real TV), 11 and 12, and Google TV 14. Every change is tested au
 </details>
 
 <details>
-<summary><b>Can I do this on a Roku, Samsung, LG or Fire TV?</b></summary>
+<summary><b>Can I do this on a Fire TV, Roku, Samsung or LG?</b></summary>
 <br>
 
-- **Roku:** no. Roku runs its own system, not Android, so nothing can connect to it to turn things off, and it can't run this home screen.
-- **Samsung (Tizen) and LG (webOS):** no, for the same reason. They aren't Android.
-- **Amazon Fire TV:** not tested. Fire TV is built on Android, but Amazon limits changing the home screen, so we can't promise it works.
+- **Amazon Fire TV:** partly. Fire TV is Android underneath, so the cleanup works. Amazon blocks changing the home screen on current Fire TVs, so you keep Amazon's. Tell Claude what you want to keep, like Alexa voice search on the remote.
+- **Roku:** no. Roku runs its own system, not Android, so nothing can connect to it to turn things off.
+- **Samsung (Tizen):** no, for the same reason.
+- **LG (webOS):** no. You can still cut down the ads by turning off **Home Promotion** and **Content Recommendation** in the TV's home settings.
 
 If your TV or streaming box runs Android TV or Google TV, it should work. That includes many Sony, TCL, Hisense, Philips and Xiaomi TVs, Chromecast with Google TV and Nvidia Shield. Some of those brands also sell Roku or other non-Android models, so check **Settings > About** if you're not sure.
+
+</details>
+
+<details>
+<summary><b>What about projectors or Android phones?</b></summary>
+<br>
+
+- **Android projectors:** probably. If it has **Developer options** and **USB debugging**, the cleanup should work. Cheap projectors often run a custom Android, so the home screen may act a bit differently.
+- **Android phones:** only the cleanup. The home screen is made for a TV remote, not touch.
+
+</details>
+
+<details>
+<summary><b>Anything to watch out for on Chromecast with Google TV?</b></summary>
+<br>
+
+It runs the same Google TV this is tested on, so it should work. People who've done it report two things:
+
+- The YouTube button on the remote can stop working, and some lose casting. Tell Claude to keep casting on if you use it.
+- Google TV can bring its own home screen back. If that happens, ask Claude to turn off Google TV's home screen and its setup app too.
+
+</details>
+
+<details>
+<summary><b>The Claude app says it can't reach my TV</b></summary>
+<br>
+
+The chat in the Claude app (and claude.ai) runs on Anthropic's servers, not on your laptop, so it can't see your TV. You need something that runs on your own laptop: [Claude Code](https://claude.com/claude-code) or [Codex](https://openai.com/codex).
+
+Don't want to pay for either? Skip the AI and use `install.sh` instead (see "Can I install the home screen without AI?" below).
+
+</details>
+
+<details>
+<summary><b>Can I do it from my phone, without a laptop?</b></summary>
+<br>
+
+Not yet. Claude has to run on a computer on the same network as your TV. A phone hotspot is fine as that network, as long as the laptop and TV both join it.
+
+</details>
+
+<details>
+<summary><b>My TV is on Ethernet, not Wi-Fi</b></summary>
+<br>
+
+That works the same. Your laptop talks to the TV over its IP address on your home network, so cable or Wi-Fi doesn't matter. The laptop just has to be on the same network. You'll find the TV's IP in its network settings, or ask Claude to find it.
+
+</details>
+
+<details>
+<summary><b>Can I just do the cleanup and keep my TV's home screen?</b></summary>
+<br>
+
+Yes. Leave out step 4 of the prompt ("Install the home screen"). Your TV looks the same, just with the junk turned off.
+
+</details>
+
+<details>
+<summary><b>Why not just use Projectivy Launcher?</b></summary>
+<br>
+
+You can. The cleanup is the part that makes the TV faster, and it works with any home screen. This one is here if you want something tiny and open source: one screen, no ads, no account, about 30 MB of RAM.
 
 </details>
 
@@ -112,7 +175,7 @@ That's a TV setting, not this home screen. Ask it: *"My TV opens Live TV at star
 <summary><b>Can I install the home screen without AI?</b></summary>
 <br>
 
-Yes. You only need `adb` (Mac: `brew install android-platform-tools`). Download this repo, then:
+Yes. You only need `adb`. On a Mac, run `brew install android-platform-tools`. On Windows, download Google's [SDK Platform Tools](https://developer.android.com/tools/releases/platform-tools), unzip it, and run the commands below from Git Bash. Download this repo, then:
 
 ```sh
 sh install.sh <TV_IP>                                               # picks your TV apps for you
