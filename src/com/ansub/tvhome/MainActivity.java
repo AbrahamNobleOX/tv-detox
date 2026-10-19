@@ -63,7 +63,7 @@ public class MainActivity extends Activity {
     private static final String PLAY_STORE = "com.android.vending";
     private static final String SETTINGS = "settings";
     private static final String ADD = "add";
-    private static final String[] EDIT_ITEMS = {"Move", "Replace with another app", "Remove from home screen"};
+    private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home"};
     private static final int PER_ROW = 6, MAX_INPUTS = 4;
 
     // Layout is designed at 1920x1080 and scaled to the TV's real UI size by px().
@@ -222,6 +222,10 @@ public class MainActivity extends Activity {
     }
 
     private void buildTiles() {
+        // While tiles are swapped out, removing the focused one would hand focus down the row (and
+        // overwrite focusedKey), so hold focus off until the new tiles are in.
+        String want = focusedKey;
+        root.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         for (View t : tiles) {
             View wrap = (View) t.getParent();
             ((ViewGroup) wrap.getParent()).removeView(wrap);
@@ -280,8 +284,9 @@ public class MainActivity extends Activity {
         addTile(root, SETTINGS, "Settings", null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, ADD, "Add app", null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
 
+        root.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         View restore = null;
-        for (View t : tiles) if (t.getTag().equals(focusedKey)) restore = t;
+        for (View t : tiles) if (t.getTag().equals(want)) restore = t;
         if (restore != null) restore.requestFocus();
     }
 
@@ -469,12 +474,70 @@ public class MainActivity extends Activity {
         d.show();
     }
 
+    // A small menu that drops down under a tile, in the same glass as the tiles. Opens above the
+    // tile when there's no room below. Back closes it.
+    private void dropdown(View anchor, String[] items, final Pick pick) {
+        final Dialog d = new Dialog(this, android.R.style.Theme_Material_Dialog_NoActionBar);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        int pad = px(10), rowH = px(64);
+        box.setPadding(pad, pad, pad, pad);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(px(RADIUS));
+        bg.setColor(0xFF231D1F);
+        bg.setStroke(Math.max(1, px(2)), 0x17FFFFFF);
+        box.setBackground(bg);
+        for (int i = 0; i < items.length; i++) {
+            final int which = i;
+            final TextView t = text(px(26), 0xD9FFFFFF, regular);
+            t.setText(items[i]);
+            t.setSingleLine(true);
+            t.setGravity(Gravity.CENTER_VERTICAL);
+            t.setPadding(px(22), 0, px(22), 0);
+            final GradientDrawable focus = new GradientDrawable();
+            focus.setCornerRadius(px(RADIUS - pad));
+            focus.setColor(Color.TRANSPARENT);
+            t.setBackground(focus);
+            t.setFocusable(true);
+            t.setOnFocusChangeListener((v, has) -> {
+                focus.setColor(has ? 0x38FFFFFF : Color.TRANSPARENT);
+                t.setTextColor(has ? Color.WHITE : 0xD9FFFFFF);
+            });
+            t.setOnClickListener(v -> {
+                d.dismiss();
+                pick.at(which);
+            });
+            box.addView(t, new LinearLayout.LayoutParams(-1, rowH));
+        }
+        d.setContentView(box);
+
+        // Line it up with the tile as drawn (focused tiles are scaled up), below its name.
+        int[] at = new int[2];
+        anchor.getLocationOnScreen(at);
+        int tileBottom = at[1] + Math.round(anchor.getHeight() * anchor.getScaleY());
+        int w = Math.max(Math.round(anchor.getWidth() * anchor.getScaleX()), px(320));
+        int h = items.length * rowH + 2 * pad;
+        int y = tileBottom + px(64);
+        if (y + h > getResources().getDisplayMetrics().heightPixels - px(24)) y = at[1] - h - px(16);
+        Window win = d.getWindow();
+        win.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        win.clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        win.setGravity(Gravity.TOP | Gravity.START);
+        android.view.WindowManager.LayoutParams lp = win.getAttributes();
+        lp.x = at[0];
+        lp.y = y;
+        lp.width = w;
+        lp.height = h;
+        win.setAttributes(lp);
+        d.show();
+    }
+
     // Hold OK (or Menu) on a top-row app: move it, swap it for another, or take it off the home
     // screen. Removing only takes the tile away: the app stays installed and can be added back.
     private void showEditMenu(final String key) {
         final int index = rowApps.indexOf(key);
         if (index < 0) return;
-        panel(labelOf(key), Arrays.asList(EDIT_ITEMS), null, which -> {
+        dropdown(tile(key), EDIT_ITEMS, which -> {
             if (which == 0) startMove(key);
             else if (which == 1) showAddMenu(index);
             else {
