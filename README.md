@@ -117,11 +117,11 @@ Most TVs keep opening their own home screen, so the script offers to turn that o
 
 Use the remote. Hold **OK** on an app (or press **Menu**) to:
 
-- **Move** it: press ◀ ▶ to slide it along the row, then press **OK** to finish.
+- **Move** it: use the arrows to slide it to a new spot, then press **OK** to finish.
 - **Replace** it: pick another app to take its place.
-- **Remove** it.
+- **Remove** it from the home screen. The app stays installed, and you can add it back any time.
 
-To add an app, pick the **Add app** tile at the end of the row. Add as many apps as you like: once they don't fit, the row scrolls sideways. Your changes are kept until you run `install.sh` with a new app list.
+To add an app, pick the **Add app** tile in the bottom row. Add as many apps as you like: they wrap into rows of six, and the page scrolls once there are more than twelve. Your changes are kept until you run `install.sh` with a new app list.
 
 </details>
 

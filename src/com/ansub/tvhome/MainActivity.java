@@ -33,10 +33,10 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.ScrollView;
 import android.widget.TextClock;
 import android.widget.TextView;
 
@@ -54,7 +54,7 @@ public class MainActivity extends Activity {
     //     (--es apps auto  goes back to 2; add --es stamp <unique> so it's applied only once, see saveConfig)
     //  2. apps.txt (built in as Apps.LIST), topped up with other TV apps installed on this TV.
     // Missing apps are skipped. Topping up stops at six apps, but a chosen list can be any length:
-    // the row scrolls sideways once it's wider than the screen.
+    // apps wrap into rows of six, like Apple TV, and the page scrolls down once they don't all fit.
     // On the TV, hold OK on an app (or press Menu) to move or remove it, or add another; that saves list 1.
     private static final String PREFS = "config";
     private static final List<String> NOT_APPS = Arrays.asList("com.android.vending", "com.android.tv.settings",
@@ -68,19 +68,20 @@ public class MainActivity extends Activity {
 
     // Layout is designed at 1920x1080 and scaled to the TV's real UI size by px().
     private static final int MARGIN = 96, GAP = 36, RADIUS = 22;
-    private static final int ROW1_TOP = 604, ROW2_TOP = 828;
+    private static final int ROW1_TOP = 604, ROW_STEP = 224;
+    private static final int GRID_MIN_TOP = 400; // more rows push the grid up, but not into the clock
     private float scale = 1f;
 
     private static Typeface regular, semibold;
 
-    private FrameLayout root;
-    private FrameLayout row; // the top row's tiles, inside a sideways scroller
+    private FrameLayout root; // the page, inside a vertical scroller
+    private int tileW, tileH, gridTop; // app grid geometry, set by buildTiles
     private final List<View> tiles = new ArrayList<>();
     private boolean dirty = true;
     private String focusedKey;
     private final List<String> rowApps = new ArrayList<>(); // the top row as shown, in order
     private String movingKey;   // the app being moved with left/right, if any
-    private TextView moveHint;  // shown above the row while moving
+    private TextView moveHint;  // shown above the apps while moving
     private boolean longPressed; // OK was held: swallow the key-up so the app doesn't open
 
     private final BroadcastReceiver packagesChanged = new BroadcastReceiver() {
@@ -95,8 +96,14 @@ public class MainActivity extends Activity {
         scale = getResources().getDisplayMetrics().widthPixels / 1920f;
         getWindow().setBackgroundDrawable(background());
 
+        ScrollView scroller = new ScrollView(this);
+        scroller.setFillViewport(true);
+        scroller.setVerticalScrollBarEnabled(false);
+        scroller.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        scroller.setClipChildren(false);
         root = new FrameLayout(this);
         root.setClipChildren(false);
+        scroller.addView(root, new FrameLayout.LayoutParams(-1, -2));
 
         LinearLayout clock = new LinearLayout(this);
         clock.setOrientation(LinearLayout.VERTICAL);
@@ -111,26 +118,12 @@ public class MainActivity extends Activity {
         clock.addView(time, tp);
         root.addView(clock, at(px(MARGIN), px(92), -2, -2));
 
-        HorizontalScrollView scroller = new HorizontalScrollView(this);
-        scroller.setClipChildren(false);
-        scroller.setClipToPadding(false);
-        scroller.setHorizontalScrollBarEnabled(false);
-        scroller.setOverScrollMode(View.OVER_SCROLL_NEVER);
-        scroller.setHorizontalFadingEdgeEnabled(true);
-        scroller.setFadingEdgeLength(px(MARGIN));
-        row = new FrameLayout(this);
-        row.setClipChildren(false);
-        row.setClipToPadding(false); // the last tile grows into the end padding when focused
-        row.setPadding(0, 0, px(MARGIN), 0);
-        scroller.addView(row, new FrameLayout.LayoutParams(-2, -2));
-        root.addView(scroller, at(0, px(ROW1_TOP), -1, -2));
-
         moveHint = text(px(24), 0xA8FFFFFF, regular);
-        moveHint.setText("Press \u25C0 \u25B6 to move it, then OK");
+        moveHint.setText("Use the arrows to move it, then press OK");
         moveHint.setVisibility(View.GONE);
         root.addView(moveHint, at(px(MARGIN), px(ROW1_TOP - 64), -2, -2));
 
-        setContentView(root);
+        setContentView(scroller);
 
         IntentFilter f = new IntentFilter();
         f.addAction(Intent.ACTION_PACKAGE_ADDED);
@@ -239,12 +232,23 @@ public class MainActivity extends Activity {
         moveHint.setVisibility(View.GONE);
 
         PackageManager pm = getPackageManager();
-        int m = px(MARGIN), g = px(GAP), top2 = px(ROW2_TOP);
+        int m = px(MARGIN), g = px(GAP);
         int w = (getResources().getDisplayMetrics().widthPixels - 2 * m - g * (PER_ROW - 1)) / PER_ROW;
         int h = w * 9 / 16;
+        tileW = w;
+        tileH = h;
 
-        int col = 0;
         List<String> apps = appList(pm);
+        // Apps fill rows of six. With more rows the grid starts higher, so up to two rows of apps and
+        // the bottom row still fit on screen; past that the page scrolls.
+        int launchable = 0;
+        for (String pkg : apps) if (launchIntent(pm, pkg) != null) launchable++;
+        int rows = Math.max(1, (launchable + PER_ROW - 1) / PER_ROW);
+        gridTop = Math.max(px(GRID_MIN_TOP), px(ROW1_TOP) - (rows - 1) * px(ROW_STEP));
+        int bottomTop = gridTop + rows * px(ROW_STEP);
+        ((FrameLayout.LayoutParams) moveHint.getLayoutParams()).topMargin = gridTop - px(64);
+        root.setMinimumHeight(bottomTop + h + px(MARGIN));
+
         for (String pkg : apps) {
             Intent li = launchIntent(pm, pkg);
             if (li == null) continue;
@@ -258,18 +262,23 @@ public class MainActivity extends Activity {
             // Apps without a TV banner get a plain tile with their normal icon.
             Drawable icon = null;
             if (banner == null) try { icon = pm.getApplicationIcon(pkg); } catch (Exception ignored) {}
+            int i = rowApps.size();
             rowApps.add(pkg);
-            addTile(row, pkg, label, banner, null, icon, m + col * (w + g), 0, w, h);
-            col++;
+            addTile(root, pkg, label, banner, null, icon, gridX(i), gridY(i), w, h);
         }
-        addTile(row, ADD, "Add app", null, LineIcon.PLUS, null, m + col * (w + g), 0, w, h);
 
-        col = 0;
-        if (!apps.contains(PLAY_STORE) && launchIntent(pm, PLAY_STORE) != null)
-            addTile(root, PLAY_STORE, "Play Store", null, LineIcon.PLAY, null, m + col++ * (w + g), top2, w, h);
-        for (TvInputInfo in : hdmiInputs())
-            addTile(root, in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), top2, w, h);
-        addTile(root, SETTINGS, "Settings", null, LineIcon.SETTINGS, null, m + col * (w + g), top2, w, h);
+        // Bottom row: Play Store, HDMI inputs, Settings and Add app, six at most.
+        int col = 0;
+        boolean store = !apps.contains(PLAY_STORE) && launchIntent(pm, PLAY_STORE) != null;
+        List<TvInputInfo> inputs = hdmiInputs();
+        int room = PER_ROW - 2 - (store ? 1 : 0);
+        if (inputs.size() > room) inputs = inputs.subList(0, room);
+        if (store)
+            addTile(root, PLAY_STORE, "Play Store", null, LineIcon.PLAY, null, m + col++ * (w + g), bottomTop, w, h);
+        for (TvInputInfo in : inputs)
+            addTile(root, in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), bottomTop, w, h);
+        addTile(root, SETTINGS, "Settings", null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
+        addTile(root, ADD, "Add app", null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
 
         View restore = null;
         for (View t : tiles) if (t.getTag().equals(focusedKey)) restore = t;
@@ -518,12 +527,21 @@ public class MainActivity extends Activity {
         getSharedPreferences(PREFS, 0).edit().putString("apps", android.text.TextUtils.join(",", rowApps)).apply();
     }
 
+    // Where app number i sits in the grid.
+    private int gridX(int i) {
+        return px(MARGIN) + (i % PER_ROW) * (tileW + px(GAP));
+    }
+
+    private int gridY(int i) {
+        return gridTop + (i / PER_ROW) * px(ROW_STEP);
+    }
+
     private View tile(String key) {
         for (View t : tiles) if (t.getTag().equals(key)) return t;
         return null;
     }
 
-    // Move mode: the tile gets an outline, left/right swaps it with its neighbour, OK or Back finishes.
+    // Move mode: the tile gets an outline, the arrows move it through the grid, OK or Back finishes.
     private void startMove(String key) {
         View card = tile(key);
         if (card == null) return;
@@ -537,19 +555,20 @@ public class MainActivity extends Activity {
     }
 
     private boolean moveKey(String key, int code, boolean ok, boolean down) {
-        if (code == KeyEvent.KEYCODE_DPAD_LEFT || code == KeyEvent.KEYCODE_DPAD_RIGHT) {
-            int from = rowApps.indexOf(key), to = from + (code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : 1);
+        int step = code == KeyEvent.KEYCODE_DPAD_LEFT ? -1 : code == KeyEvent.KEYCODE_DPAD_RIGHT ? 1
+                : code == KeyEvent.KEYCODE_DPAD_UP ? -PER_ROW : code == KeyEvent.KEYCODE_DPAD_DOWN ? PER_ROW : 0;
+        if (step != 0) {
+            int from = rowApps.indexOf(key), to = from + step;
             if (down && to >= 0 && to < rowApps.size()) {
-                // Swap the two tiles' places on screen: no rebuild, so it stays quick on slow TVs.
-                View a = (View) tile(key).getParent(), b = (View) tile(rowApps.get(to)).getParent();
-                FrameLayout.LayoutParams pa = (FrameLayout.LayoutParams) a.getLayoutParams();
-                FrameLayout.LayoutParams pb = (FrameLayout.LayoutParams) b.getLayoutParams();
-                int x = pa.leftMargin;
-                pa.leftMargin = pb.leftMargin;
-                pb.leftMargin = x;
-                a.setLayoutParams(pa);
-                b.setLayoutParams(pb);
-                Collections.swap(rowApps, from, to);
+                // Slide the tiles into their new places: no rebuild, so it stays quick on slow TVs.
+                rowApps.add(to, rowApps.remove(from));
+                for (int i = Math.min(from, to); i <= Math.max(from, to); i++) {
+                    View wrap = (View) tile(rowApps.get(i)).getParent();
+                    FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) wrap.getLayoutParams();
+                    lp.leftMargin = gridX(i);
+                    lp.topMargin = gridY(i);
+                    wrap.setLayoutParams(lp);
+                }
                 // Scroll along with it once it has moved.
                 final View card = tile(key);
                 card.post(() -> card.requestRectangleOnScreen(
