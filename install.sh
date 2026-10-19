@@ -57,7 +57,8 @@ if [ -n "$APPS" ] || [ -n "$QUICK" ]; then
 fi
 
 ME=com.ansub.tvhome/.MainActivity
-sh_tv() { adb -s "$TV" shell "$@" | tr -d '\r'; }
+# Keeps adb's exit status, so a failed command on the TV counts as failed here.
+sh_tv() { _rc=0; _out=$(adb -s "$TV" shell "$@") || _rc=$?; [ -z "$_out" ] || printf '%s\n' "$_out" | tr -d '\r'; return $_rc; }
 current_home() { sh_tv cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1; }
 
 # Make it the default home: the role (Android 10+) and the classic way.
@@ -79,15 +80,23 @@ is_launcher() {
   esac
   case " $(echo $LAUNCHERS) " in *" $1 "*) ;; *) return 1 ;; esac
   # If we can't read its flags, or it always runs, leave it on.
-  flags=$(sh_tv dumpsys package "$1" 2>/dev/null | grep -m1 'pkgFlags=\[') || return 1
+  flags=$(sh_tv dumpsys package "$1" 2>/dev/null | sed -n '/pkgFlags=\[/{p;q;}')
+  [ -n "$flags" ] || return 1
   case "$flags" in *PERSISTENT*) return 1 ;; esac
   return 0
 }
 
-# Turns apps off (not uninstall) and saves them on the TV, so undo.sh can turn them back on.
+is_off() { sh_tv pm list packages -d "$1" | grep -Fqx "package:$1"; }
+
+# Turns apps off (not uninstall). Each one is saved on the TV first, so undo.sh can always
+# turn it back on. If it can't be saved, it's left on.
 turn_off() {
   for p in "$@"; do
-    sh_tv pm disable-user --user 0 "$p" >/dev/null && sh_tv "echo $p >> /data/local/tmp/tvhome-disabled.txt"
+    if ! sh_tv "echo $p >> /data/local/tmp/tvhome-disabled.txt"; then
+      echo "Leaving $p on: couldn't save it for undo.sh." >&2; continue
+    fi
+    sh_tv pm disable-user --user 0 "$p" >/dev/null 2>&1 || true
+    is_off "$p" || echo "Couldn't turn $p off." >&2
   done
   # Android saves this a few seconds later. Restarting before then can undo it.
   echo "Saving the change on the TV, this takes 15 seconds…"
@@ -124,26 +133,31 @@ if [ "$(current_home)" != "$ME" ]; then
 fi
 
 # On some Google TVs (like Sony BRAVIA) the setup app wins Home once Google TV's home screen
-# is off. It's only turned off if it's still in the way, the TV has finished its first setup,
-# and the system doesn't keep it always running.
-if [ "$(current_home)" != "$ME" ] && home_apps | grep -qx "$WRAITH" \
-    && ! home_apps | grep -qx com.google.android.apps.tv.launcherx; then
-  flags=$(sh_tv dumpsys package "$WRAITH" 2>/dev/null | grep -m1 'pkgFlags=\[') || flags=PERSISTENT
+# is off. It's only offered if Home opens exactly that app, Google TV's home screen is already
+# off, the TV has finished its first setup, and the system doesn't keep it always running.
+# YES=1 doesn't cover it: it needs its own answer, or YES_SETUP=1.
+LAUNCHERX=com.google.android.apps.tv.launcherx
+if [ "$(current_home | sed 's|/.*||')" = "$WRAITH" ] \
+    && ! sh_tv pm list packages -e "$LAUNCHERX" | grep -Fqx "package:$LAUNCHERX"; then
+  flags=$(sh_tv dumpsys package "$WRAITH" 2>/dev/null | sed -n '/pkgFlags=\[/{p;q;}')
+  [ -n "$flags" ] || flags=PERSISTENT
   if [ "$(sh_tv settings get global device_provisioned)" != 1 ] || [ "$(sh_tv settings get secure user_setup_complete)" != 1 ]; then
     echo "Leaving $WRAITH on: your TV hasn't finished its first setup."
   else case "$flags" in
     *PERSISTENT*) echo "Leaving $WRAITH on: it may be needed for your TV to start." ;;
     *)
       echo "Google TV's setup app ($WRAITH) is taking over Home."
-      echo "Your TV has finished its first setup, so it doesn't need this to start. Turning it off makes Home open your new home screen."
-      answer=${YES:+y}
-      if [ -z "$answer" ]; then
-        printf "Turn it off too? You can undo this with undo.sh. [y/N] "
+      echo "Turning it off fixed this on a Sony BRAVIA, but it hasn't been tested on every TV."
+      echo "If anything goes wrong, undo.sh turns it back on."
+      if [ "$YES_SETUP" = 1 ]; then answer=y
+      elif [ -n "$YES" ]; then answer=n
+      else
+        printf "Turn off the setup app too? [y/N] "
         read answer </dev/tty || answer=n
       fi
       case "$answer" in
         y|Y|yes) turn_off "$WRAITH" ;;
-        *) echo "Left it on. Your TV may keep opening its setup app when you press Home." ;;
+        *) echo "Left it on. Your TV may keep opening its setup app when you press Home. To turn it off later, run this again with YES_SETUP=1." ;;
       esac ;;
   esac; fi
 fi

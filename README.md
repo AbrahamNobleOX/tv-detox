@@ -56,7 +56,9 @@ My TV is a <brand and model>.
    System UI, setup apps, the keyboard, Bluetooth, my HDMI
    inputs, the TV's input and tuner framework, or anything
    else the TV needs to start. If you're not sure, leave
-   it on.
+   it on. The one exception: if install.sh offers to turn
+   off Google TV's setup app because it's taking over Home,
+   ask me first.
 5. Install the home screen: download
    https://github.com/Ansub/tv-detox and run its
    install.sh with my TV and these apps: <your apps>.
@@ -133,7 +135,7 @@ It runs the same Google TV this is tested on, so it should work. People who've d
 <summary><b>Home opens Google TV's setup screen instead (Sony BRAVIA and others)</b></summary>
 <br>
 
-On some Google TVs, once Google TV's home screen (`com.google.android.apps.tv.launcherx`) is off, Android picks the setup app (`com.google.android.tungsten.setupwraith`) for Home instead. `install.sh` spots this and offers to turn the setup app off too, but only if the TV has finished its first setup. `undo.sh` turns it back on.
+On some Google TVs, once Google TV's home screen (`com.google.android.apps.tv.launcherx`) is off, Android picks the setup app (`com.google.android.tungsten.setupwraith`) for Home instead. `install.sh` spots this and asks before turning the setup app off too. It only asks if Home opens exactly that app, Google TV's home screen is already off and the TV has finished its first setup. `YES=1` doesn't turn it off; use `YES_SETUP=1` for that. This worked on a Sony BRAVIA, but it hasn't been tested on every TV. `undo.sh` turns it back on.
 
 To undo it by hand:
 
