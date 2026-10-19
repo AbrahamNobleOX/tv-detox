@@ -44,7 +44,7 @@ check "Home opens this home screen" '[ "$(home)" = "$ME" ]' \
 for p in $(sh_tv cat /data/local/tmp/tvhome-disabled.txt 2>/dev/null | sort -u); do
   check "$p stays off" "is_off $p" "sh_tv pm disable-user --user 0 $p"
 done
-check "remote buttons service" 'sh_tv settings get secure enabled_accessibility_services | grep -q "$KEYS"' \
+[ -z "$(sh_tv cat /data/local/tmp/tvhome-keys.txt 2>/dev/null)" ] || check "remote buttons service" 'sh_tv settings get secure enabled_accessibility_services | grep -q "$KEYS"' \
   'on=$(sh_tv settings get secure enabled_accessibility_services); case "$on" in null|"") on=$KEYS ;; *) on="$on:$KEYS" ;; esac
    sh_tv settings put secure enabled_accessibility_services "$on"; sh_tv settings put secure accessibility_enabled 1'
 

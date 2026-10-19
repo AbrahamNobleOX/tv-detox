@@ -177,7 +177,7 @@ That's a TV setting, not this home screen. Ask it: *"My TV opens Live TV at star
 
 Some remote buttons are handled by the TV's own home screen or by apps the cleanup turned off. To see which app handles which button, ask Claude: *"Run `adb shell dumpsys window policy` and tell me which apps my remote's global keys go to."* Then turn that app back on.
 
-The YouTube button on Xiaomi remotes goes to Google TV's home screen. This home screen takes that button over and opens SmartTube (YouTube without ads) if it's installed, or YouTube if it isn't. `install.sh` switches this on, as an accessibility service called "Home: remote buttons".
+The YouTube button on Xiaomi remotes goes to Google TV's home screen. This home screen takes that button over and opens SmartTube (YouTube without ads) if it's installed, or YouTube if it isn't. `install.sh` switches this on only when your YouTube button went to the home screen it turned off. It's an accessibility service called "Home: remote buttons", and `undo.sh` turns it off again.
 
 </details>
 

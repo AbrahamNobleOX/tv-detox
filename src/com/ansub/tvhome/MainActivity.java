@@ -152,12 +152,10 @@ public class MainActivity extends Activity {
         f.addDataScheme("package");
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(packagesChanged, f, Context.RECEIVER_EXPORTED);
         else registerReceiver(packagesChanged, f);
-        handler.postDelayed(everyMinute, CHECK_MS);
     }
 
     @Override
     protected void onDestroy() {
-        handler.removeCallbacks(everyMinute);
         unregisterReceiver(packagesChanged);
         super.onDestroy();
     }
@@ -219,7 +217,14 @@ public class MainActivity extends Activity {
         }
         View f = getCurrentFocus();
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
-        showFreeMemory();
+        handler.removeCallbacks(everyMinute);
+        everyMinute.run();
+    }
+
+    @Override
+    protected void onPause() {
+        handler.removeCallbacks(everyMinute); // no need to keep checking while an app is open
+        super.onPause();
     }
 
     private void showFreeMemory() {
