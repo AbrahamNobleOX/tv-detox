@@ -89,6 +89,18 @@ Android TV 9 (a real TV), 11 and 12, and Google TV 14. Every change is tested au
 </details>
 
 <details>
+<summary><b>Can I do this on a Roku, Samsung, LG or Fire TV?</b></summary>
+<br>
+
+- **Roku:** no. Roku runs its own system, not Android, so nothing can connect to it to turn things off, and it can't run this home screen.
+- **Samsung (Tizen) and LG (webOS):** no, for the same reason. They aren't Android.
+- **Amazon Fire TV:** not tested. Fire TV is built on Android, but Amazon limits changing the home screen, so we can't promise it works.
+
+If your TV or streaming box runs Android TV or Google TV, it should work. That includes many Sony, TCL, Hisense, Philips and Xiaomi TVs, Chromecast with Google TV and Nvidia Shield. Some of those brands also sell Roku or other non-Android models, so check **Settings > About** if you're not sure.
+
+</details>
+
+<details>
 <summary><b>The TV still opens Live TV or HDMI when it turns on</b></summary>
 <br>
 
