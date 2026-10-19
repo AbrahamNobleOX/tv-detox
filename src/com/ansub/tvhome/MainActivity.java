@@ -144,7 +144,7 @@ public class MainActivity extends Activity {
         LinearLayout clock = new LinearLayout(this);
         clock.setOrientation(LinearLayout.VERTICAL);
         shownLang = Strings.lang();
-        String day = Strings.t("EEEE, d MMMM");
+        String day = Strings.datePattern();
         TextClock date = clock(day, day, px(30), 0xA8FFFFFF, regular);
         TextClock time = clock("h:mm", "H:mm", px(176), Color.WHITE, semibold);
         time.setLetterSpacing(-0.028f);
@@ -733,6 +733,7 @@ public class MainActivity extends Activity {
         bg.setColor(0xFF231D1F);
         bg.setStroke(Math.max(1, px(2)), 0x17FFFFFF);
         box.setBackground(bg);
+        float widest = 0; // some languages need more room than the tile is wide
         for (int i = 0; i < items.length; i++) {
             final int which = i;
             final TextView t = text(px(26), 0xD9FFFFFF, regular);
@@ -740,6 +741,7 @@ public class MainActivity extends Activity {
             t.setSingleLine(true);
             t.setGravity(Gravity.CENTER_VERTICAL);
             t.setPadding(px(22), 0, px(22), 0);
+            widest = Math.max(widest, t.getPaint().measureText(t.getText().toString()) + 2 * px(22) + 2 * pad);
             final GradientDrawable focus = new GradientDrawable();
             focus.setCornerRadius(px(RADIUS - pad));
             focus.setColor(Color.TRANSPARENT);
@@ -761,7 +763,7 @@ public class MainActivity extends Activity {
         int[] at = new int[2];
         anchor.getLocationOnScreen(at);
         int tileBottom = at[1] + Math.round(anchor.getHeight() * anchor.getScaleY());
-        int w = Math.max(Math.round(anchor.getWidth() * anchor.getScaleX()), px(320));
+        int w = Math.max(Math.max(Math.round(anchor.getWidth() * anchor.getScaleX()), px(320)), (int) Math.ceil(widest));
         int h = items.length * rowH + 2 * pad;
         int y = tileBottom + px(64);
         if (y + h > getResources().getDisplayMetrics().heightPixels - px(24)) y = at[1] - h - px(16);

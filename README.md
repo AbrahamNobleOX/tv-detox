@@ -300,7 +300,7 @@ If the laptop never connects, use the TV's recovery mode or a factory reset. How
 3. `sh build.sh`, then `sh install.sh <TV_IP>` installs your build instead of the release.
 4. `sh ci/smoke-test.sh <TV_IP or emulator>` checks it all works.
 
-HDMI inputs are found on their own. The labels follow the TV's language (English and Brazilian Portuguese so far): to add yours, add a table to `src/com/ansub/tvhome/Strings.java`. Keep `key.jks`, which is made on your first build: updates must be signed with the same key.
+HDMI inputs are found on their own. The labels follow the TV's language, with 16 languages built in. To add yours or fix a translation, edit `src/com/ansub/tvhome/Strings.java`. Keep `key.jks`, which is made on your first build: updates must be signed with the same key.
 
 It's one screen of plain Java, no libraries, no Gradle. The background is drawn once, the only animation is the focus lift, and it uses about 30 MB of RAM.
 
