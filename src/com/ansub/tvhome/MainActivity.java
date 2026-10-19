@@ -391,9 +391,16 @@ public class MainActivity extends Activity {
             i = new Intent(Settings.ACTION_SETTINGS);
         } else if (isInput(key)) {
             i = new Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(key));
-            // Prefer the stock Live TV app when it's there; otherwise let the TV pick.
-            Intent live = new Intent(i).setClassName("com.android.tv", "com.android.tv.MainActivity");
-            if (live.resolveActivity(getPackageManager()) != null) i = live;
+            // Prefer a Live TV app that is installed (Droidlogic TVs ship it under their own package);
+            // otherwise let the TV pick. resolveActivity() says yes for a missing package, so ask for the package.
+            for (String[] live : new String[][] {{"com.android.tv", "com.android.tv.MainActivity"},
+                                                 {"com.droidlogic.android.tv", "com.android.tv.TvActivity"}}) {
+                try {
+                    getPackageManager().getApplicationInfo(live[0], 0);
+                    i = new Intent(i).setClassName(live[0], live[1]);
+                    break;
+                } catch (PackageManager.NameNotFoundException ignored) { }
+            }
         } else {
             i = launchIntent(getPackageManager(), key);
             if (i == null) return;
