@@ -114,7 +114,10 @@ final class Strings {
         Locale l = Locale.getDefault();
         String key = l.getLanguage() + "-" + l.getCountry();
         // Chinese can name its script outright (zh-Hant, zh-Hans-HK): that wins over the country.
-        if ("zh".equals(l.getLanguage()) && !l.getScript().isEmpty()) key = "Hant".equals(l.getScript()) ? "zh-TW" : "zh";
+        if ("zh".equals(l.getLanguage())) {
+            if ("Hant".equals(l.getScript())) key = "zh-TW";
+            else if ("Hans".equals(l.getScript())) key = "zh";
+        }
         String[] table = LANGS.get(key);
         if (table == null) table = LANGS.get(l.getLanguage());
         if (table == null) return en;
