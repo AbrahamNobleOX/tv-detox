@@ -84,14 +84,28 @@ is_launcher() {
   return 0
 }
 
-# Most TVs' own launchers still win when you press Home. The fix is to turn them off
-# (not uninstall). We save what we turned off on the TV, so undo.sh can turn it back on.
+# Turns apps off (not uninstall) and saves them on the TV, so undo.sh can turn them back on.
+turn_off() {
+  for p in "$@"; do
+    sh_tv pm disable-user --user 0 "$p" >/dev/null && sh_tv "echo $p >> /data/local/tmp/tvhome-disabled.txt"
+  done
+  # Android saves this a few seconds later. Restarting before then can undo it.
+  echo "Saving the change on the TV, this takes 15 seconds…"
+  sleep 15
+  sh_tv cmd package set-home-activity "$ME" >/dev/null 2>&1 || true
+}
+
+# Google TV's setup app. It's handled on its own below.
+WRAITH=com.google.android.tungsten.setupwraith
+home_apps() { sh_tv cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null \
+  | grep / | sed 's|/.*||; s/^ *//' | sort -u; }
+
+# Most TVs' own launchers still win when you press Home. The fix is to turn them off.
 if [ "$(current_home)" != "$ME" ]; then
   others=""
-  for p in $(sh_tv cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null \
-      | grep / | sed 's|/.*||; s/^ *//' | sort -u); do
+  for p in $(home_apps); do
     if is_launcher "$p"; then others="$others $p"; continue; fi
-    case "$p" in com.ansub.tvhome|com.android.settings|com.android.tv.settings) ;; *) echo "Leaving $p on: it may be needed for your TV to start." ;; esac
+    case "$p" in com.ansub.tvhome|com.android.settings|com.android.tv.settings|$WRAITH) ;; *) echo "Leaving $p on: it may be needed for your TV to start." ;; esac
   done
   others=$(echo $others | tr ' ' '\n')
   if [ -n "$others" ]; then
@@ -103,17 +117,35 @@ if [ "$(current_home)" != "$ME" ]; then
       read answer </dev/tty || answer=n
     fi
     case "$answer" in
-      y|Y|yes)
-        for p in $others; do
-          sh_tv pm disable-user --user 0 "$p" >/dev/null && sh_tv "echo $p >> /data/local/tmp/tvhome-disabled.txt"
-        done
-        # Android saves this a few seconds later. Restarting before then can undo it.
-        echo "Saving the change on the TV, this takes 15 seconds…"
-        sleep 15
-        sh_tv cmd package set-home-activity "$ME" >/dev/null 2>&1 || true ;;
+      y|Y|yes) turn_off $others ;;
       *) echo "Left it on. Your TV may keep opening its own home screen." ;;
     esac
   fi
+fi
+
+# On some Google TVs (like Sony BRAVIA) the setup app wins Home once Google TV's home screen
+# is off. It's only turned off if it's still in the way, the TV has finished its first setup,
+# and the system doesn't keep it always running.
+if [ "$(current_home)" != "$ME" ] && home_apps | grep -qx "$WRAITH" \
+    && ! home_apps | grep -qx com.google.android.apps.tv.launcherx; then
+  flags=$(sh_tv dumpsys package "$WRAITH" 2>/dev/null | grep -m1 'pkgFlags=\[') || flags=PERSISTENT
+  if [ "$(sh_tv settings get global device_provisioned)" != 1 ] || [ "$(sh_tv settings get secure user_setup_complete)" != 1 ]; then
+    echo "Leaving $WRAITH on: your TV hasn't finished its first setup."
+  else case "$flags" in
+    *PERSISTENT*) echo "Leaving $WRAITH on: it may be needed for your TV to start." ;;
+    *)
+      echo "Google TV's setup app ($WRAITH) is taking over Home."
+      echo "Your TV has finished its first setup, so it doesn't need this to start. Turning it off makes Home open your new home screen."
+      answer=${YES:+y}
+      if [ -z "$answer" ]; then
+        printf "Turn it off too? You can undo this with undo.sh. [y/N] "
+        read answer </dev/tty || answer=n
+      fi
+      case "$answer" in
+        y|Y|yes) turn_off "$WRAITH" ;;
+        *) echo "Left it on. Your TV may keep opening its setup app when you press Home." ;;
+      esac ;;
+  esac; fi
 fi
 
 adb -s "$TV" shell input keyevent KEYCODE_HOME

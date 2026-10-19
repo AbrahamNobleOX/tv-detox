@@ -14,6 +14,11 @@ case "$TV" in *:*) adb connect "$TV" >/dev/null || true ;; esac
 for p in $(adb -s "$TV" shell cat /data/local/tmp/tvhome-disabled.txt 2>/dev/null | tr -d '\r' | sort -u); do
   adb -s "$TV" shell pm enable "$p" >/dev/null && echo "Turned $p back on"
 done
+# Google TV's setup app may have been turned off by hand (see the README), so turn it back on too.
+W=com.google.android.tungsten.setupwraith
+if adb -s "$TV" shell pm list packages -d "$W" 2>/dev/null | tr -d '\r' | grep -qx "package:$W"; then
+  adb -s "$TV" shell pm enable "$W" >/dev/null && echo "Turned $W back on"
+fi
 adb -s "$TV" shell rm -f /data/local/tmp/tvhome-disabled.txt
 adb -s "$TV" uninstall com.ansub.tvhome >/dev/null 2>&1 || true
 adb -s "$TV" shell input keyevent KEYCODE_HOME

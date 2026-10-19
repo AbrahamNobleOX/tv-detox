@@ -125,7 +125,24 @@ If your TV or streaming box runs Android TV or Google TV, it should work. That i
 It runs the same Google TV this is tested on, so it should work. People who've done it report two things:
 
 - The YouTube button on the remote can stop working, and some lose casting. Tell Claude to keep casting on if you use it.
-- Google TV can bring its own home screen back. If that happens, ask Claude to turn off Google TV's home screen. Leave its setup app on: the TV needs it to start.
+- Google TV can bring its own home screen back. If that happens, ask Claude to turn off Google TV's home screen. Leave its setup app on unless it's taking over Home (see below).
+
+</details>
+
+<details>
+<summary><b>Home opens Google TV's setup screen instead (Sony BRAVIA and others)</b></summary>
+<br>
+
+On some Google TVs, once Google TV's home screen (`com.google.android.apps.tv.launcherx`) is off, Android picks the setup app (`com.google.android.tungsten.setupwraith`) for Home instead. `install.sh` spots this and offers to turn the setup app off too, but only if the TV has finished its first setup. `undo.sh` turns it back on.
+
+To undo it by hand:
+
+```sh
+adb shell pm enable com.google.android.tungsten.setupwraith
+adb shell pm enable com.google.android.apps.tv.launcherx
+```
+
+If the TV ever asks to be set up again, or a setup screen won't finish, turn the setup app back on first.
 
 </details>
 
