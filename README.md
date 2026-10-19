@@ -205,7 +205,7 @@ To add an app, pick the **Add app** tile in the bottom row. Add as many apps as 
 <summary><b>Can I get Wi-Fi and Bluetooth one press away?</b></summary>
 <br>
 
-Yes. A small network tile always sits next to the clock. It shows **Wi-Fi** (with signal bars), **Ethernet** or **Offline**, and opens your network settings. **Bluetooth**, **Sound** and **Picture** shortcuts can join it. They're off unless you ask for them:
+Yes. A small network icon always sits next to the clock. It shows **Wi-Fi** (with signal bars), **Ethernet** or a crossed-out Wi-Fi when you're offline, and opens your network settings. **Bluetooth**, **Sound** and **Picture** shortcuts can join it. They're off unless you ask for them:
 
 ```sh
 sh install.sh <TV_IP> "" "bluetooth,sound,picture"   # pick any of them, in any order

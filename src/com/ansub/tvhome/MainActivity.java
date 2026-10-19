@@ -89,7 +89,7 @@ public class MainActivity extends Activity {
     private static final int MARGIN = 96, GAP = 36, RADIUS = 22;
     private static final int ROW1_TOP = 604, ROW_STEP = 224;
     private static final int GRID_MIN_TOP = 400; // more rows push the grid up, but not into the clock
-    private static final int QUICK_TOP = 140, QUICK_W = 176, QUICK_H = 120, QUICK_GAP = 24;
+    private static final int ICON_TOP = 76, ICON_BUTTON = 72, ICON_SIZE = 40, ICON_GAP = 12; // level with the date
     private float scale = 1f;
 
     private static Typeface regular, semibold;
@@ -111,7 +111,6 @@ public class MainActivity extends Activity {
     // The network tile follows the connection live: Wi-Fi bars, Ethernet or Offline. Only its icon and
     // label change, so nothing is rebuilt.
     private ImageView netIcon;
-    private TextView netLabel;
     private int netState = -1;
     private final ConnectivityManager.NetworkCallback networkChanged = new ConnectivityManager.NetworkCallback() {
         @Override public void onAvailable(Network n) { runOnUiThread(MainActivity.this::refreshNetwork); }
@@ -336,19 +335,18 @@ public class MainActivity extends Activity {
         addTile(root, SETTINGS, "Settings", null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, ADD, "Add app", null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
 
-        // Small tiles at the top right, level with the clock: any settings shortcuts picked, then the
-        // network tile. Added last, so the first app keeps first focus; Up from the apps reaches them.
+        // Plain icons at the top right, level with the date: any settings shortcuts picked, then the
+        // network icon. Added last, so the first app keeps first focus; Up from the apps reaches them.
         List<Integer> quick = quickList();
-        int qw = px(QUICK_W), qh = px(QUICK_H), qg = px(QUICK_GAP);
-        int qx = getResources().getDisplayMetrics().widthPixels - m - (quick.size() + 1) * qw - quick.size() * qg;
+        int ib = px(ICON_BUTTON), ig = px(ICON_GAP);
+        // The last icon's right edge lines up with the apps' (its focus circle sticks out past them).
+        int qx = getResources().getDisplayMetrics().widthPixels - m + (ib - px(ICON_SIZE)) / 2
+                - (quick.size() + 1) * ib - quick.size() * ig;
         for (int q : quick) {
-            addTile(root, QUICK + QUICK_NAMES[q], QUICK_LABELS[q], null, QUICK_ICONS[q], null, qx, px(QUICK_TOP), qw, qh);
-            qx += qw + qg;
+            addIcon(QUICK + QUICK_NAMES[q], QUICK_LABELS[q], new LineIcon(QUICK_ICONS[q]), qx);
+            qx += ib + ig;
         }
-        addTile(root, NETWORK, "Wi-Fi", null, LineIcon.WIFI, null, qx, px(QUICK_TOP), qw, qh);
-        ViewGroup inner = (ViewGroup) ((ViewGroup) tiles.get(tiles.size() - 1)).getChildAt(0);
-        netIcon = (ImageView) inner.getChildAt(0);
-        netLabel = (TextView) inner.getChildAt(1);
+        netIcon = addIcon(NETWORK, "Network", null, qx);
         netState = -1;
         refreshNetwork();
 
@@ -448,6 +446,34 @@ public class MainActivity extends Activity {
         }
         parent.addView(wrap, at(x, y, w, -2));
         tiles.add(card);
+    }
+
+    // An icon on its own, no tile or label: a glass circle shows behind it only while it's focused.
+    private ImageView addIcon(final String key, String label, Drawable icon, int x) {
+        int b = px(ICON_BUTTON), size = px(ICON_SIZE);
+        FrameLayout card = new FrameLayout(this);
+        final GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.OVAL);
+        bg.setColor(Color.TRANSPARENT);
+        card.setBackground(bg);
+        ImageView iv = new ImageView(this);
+        iv.setImageDrawable(icon);
+        card.addView(iv, new FrameLayout.LayoutParams(size, size, Gravity.CENTER));
+        card.setFocusable(true);
+        card.setTag(key);
+        card.setContentDescription(label);
+        card.setOnFocusChangeListener((v, has) -> {
+            if (has) focusedKey = key;
+            bg.setColor(has ? 0x38FFFFFF : Color.TRANSPARENT);
+            v.animate().scaleX(has ? 1.1f : 1f).scaleY(has ? 1.1f : 1f).setDuration(140).withLayer().start();
+        });
+        card.setOnClickListener(v -> open(key));
+        FrameLayout wrap = new FrameLayout(this);
+        wrap.setClipChildren(false);
+        wrap.addView(card, new FrameLayout.LayoutParams(b, b));
+        root.addView(wrap, at(x, px(ICON_TOP), b, b));
+        tiles.add(card);
+        return iv;
     }
 
     private void open(String key) {
@@ -554,7 +580,8 @@ public class MainActivity extends Activity {
                     : state == 2 ? LineIcon.WIFI_2 : LineIcon.WIFI;
             netIcon.setImageDrawable(new LayerDrawable(new Drawable[] {fan, new LineIcon(top)}));
         }
-        netLabel.setText(state == OFFLINE ? "Offline" : state == ETHERNET ? "Ethernet" : "Wi-Fi");
+        ((View) netIcon.getParent()).setContentDescription(
+                state == OFFLINE ? "Offline" : state == ETHERNET ? "Ethernet" : "Wi-Fi");
     }
 
     // Wi-Fi settings (on Android TV that page lists Ethernet too), else the TV's network page, else Settings.
