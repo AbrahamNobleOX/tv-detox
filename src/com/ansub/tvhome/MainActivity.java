@@ -56,6 +56,8 @@ public class MainActivity extends Activity {
     // Missing apps are skipped. Topping up stops at six apps, but a chosen list can be any length:
     // apps wrap into rows of six, like Apple TV, and the page scrolls down once they don't all fit.
     // On the TV, hold OK on an app (or press Menu) to move or remove it, or add another; that saves list 1.
+    // Settings shortcuts next to the clock are off until picked the same way: --es quick "wifi,bluetooth,sound,picture"
+    // (--es quick none  takes them away again).
     private static final String PREFS = "config";
     private static final List<String> NOT_APPS = Arrays.asList("com.android.vending", "com.android.tv.settings",
             "com.android.tv", "com.google.android.tvlauncher", "com.google.android.apps.tv.launcherx",
@@ -66,10 +68,19 @@ public class MainActivity extends Activity {
     private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home"};
     private static final int PER_ROW = 6, MAX_INPUTS = 4;
 
+    // Settings shortcuts: name, label, icon. Tile keys are QUICK + name.
+    private static final String QUICK = "quick:";
+    private static final String[] QUICK_NAMES = {"wifi", "bluetooth", "sound", "picture"};
+    private static final String[] QUICK_LABELS = {"Wi-Fi", "Bluetooth", "Sound", "Picture"};
+    private static final int[][] QUICK_ICONS = {LineIcon.WIFI, LineIcon.BLUETOOTH, LineIcon.SOUND, LineIcon.PICTURE};
+    // TCL keeps its own Picture and Sound panels in a service; Android's Sound page is missing there.
+    private static final String TCL_SHOW_WINDOW = "com.tcl.settings.SHOW_WINDOW";
+
     // Layout is designed at 1920x1080 and scaled to the TV's real UI size by px().
     private static final int MARGIN = 96, GAP = 36, RADIUS = 22;
     private static final int ROW1_TOP = 604, ROW_STEP = 224;
     private static final int GRID_MIN_TOP = 400; // more rows push the grid up, but not into the clock
+    private static final int QUICK_TOP = 140, QUICK_W = 176, QUICK_H = 120, QUICK_GAP = 24;
     private float scale = 1f;
 
     private static Typeface regular, semibold;
@@ -147,20 +158,29 @@ public class MainActivity extends Activity {
         if (saveConfig(intent)) buildTiles();
     }
 
-    // Saves an app list passed with --es apps "...". Returns true if it changed.
+    // Saves an app list passed with --es apps "..." and shortcuts passed with --es quick "...".
+    // Returns true if it changed.
     // When Android kills the home screen in the background, it can start it again with the same old
     // intent; the stamp install.sh sends stops that from undoing changes made on the TV since.
     private boolean saveConfig(Intent intent) {
         String apps = intent == null ? null : intent.getStringExtra("apps");
-        if (apps == null) return false;
+        String quick = intent == null ? null : intent.getStringExtra("quick");
+        if (apps == null && quick == null) return false;
         SharedPreferences prefs = getSharedPreferences(PREFS, 0);
         String stamp = intent.getStringExtra("stamp");
         if (stamp != null && stamp.equals(prefs.getString("stamp", null))) return false;
-        apps = apps.trim();
         SharedPreferences.Editor e = prefs.edit();
         if (stamp != null) e.putString("stamp", stamp);
-        if (apps.isEmpty() || apps.equalsIgnoreCase("auto")) e.remove("apps");
-        else e.putString("apps", apps);
+        if (apps != null) {
+            apps = apps.trim();
+            if (apps.isEmpty() || apps.equalsIgnoreCase("auto")) e.remove("apps");
+            else e.putString("apps", apps);
+        }
+        if (quick != null) {
+            quick = quick.trim();
+            if (quick.isEmpty() || quick.equalsIgnoreCase("none")) e.remove("quick");
+            else e.putString("quick", quick);
+        }
         e.apply();
         dirty = true;
         return true;
@@ -284,6 +304,16 @@ public class MainActivity extends Activity {
         addTile(root, SETTINGS, "Settings", null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, ADD, "Add app", null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
 
+        // Settings shortcuts, if picked: small tiles at the top right, level with the clock.
+        // Added last, so the first app keeps first focus; Up from the apps reaches them.
+        List<Integer> quick = quickList();
+        int qw = px(QUICK_W), qh = px(QUICK_H), qg = px(QUICK_GAP);
+        int qx = getResources().getDisplayMetrics().widthPixels - m - quick.size() * qw - (quick.size() - 1) * qg;
+        for (int q : quick) {
+            addTile(root, QUICK + QUICK_NAMES[q], QUICK_LABELS[q], null, QUICK_ICONS[q], null, qx, px(QUICK_TOP), qw, qh);
+            qx += qw + qg;
+        }
+
         root.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
         View restore = null;
         for (View t : tiles) if (t.getTag().equals(want)) restore = t;
@@ -392,6 +422,9 @@ public class MainActivity extends Activity {
         } else if (isInput(key)) {
             openInput(key);
             return;
+        } else if (key.startsWith(QUICK)) {
+            openQuick(key.substring(QUICK.length()));
+            return;
         } else {
             i = launchIntent(getPackageManager(), key);
             if (i == null) return;
@@ -420,6 +453,55 @@ public class MainActivity extends Activity {
             t.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             try {
                 startActivity(t);
+                return;
+            } catch (Exception ignored) {}
+        }
+    }
+
+    // The shortcuts picked with --es quick, in that order, as indexes into QUICK_NAMES. A shortcut
+    // this TV has no screen for is left out, so it never shows a tile that does nothing.
+    private List<Integer> quickList() {
+        List<Integer> out = new ArrayList<>();
+        String saved = getSharedPreferences(PREFS, 0).getString("quick", null);
+        if (saved == null) return out;
+        for (String name : saved.split("[,\\s]+")) {
+            int q = Arrays.asList(QUICK_NAMES).indexOf(name.toLowerCase(java.util.Locale.ROOT));
+            if (q >= 0 && !out.contains(q) && !quickIntents(QUICK_NAMES[q]).isEmpty()) out.add(q);
+        }
+        return out;
+    }
+
+    // Screens a shortcut can open, best first, keeping only those this TV has.
+    private List<Intent> quickIntents(String name) {
+        List<Intent> all = new ArrayList<>();
+        String tclType = name.equals("sound") ? "SoundPreset" : name.equals("picture") ? "picture" : null;
+        if (tclType != null)
+            all.add(new Intent(TCL_SHOW_WINDOW).setClassName("com.tcl.settings", "com.tcl.settings.ShowWindowService")
+                    .putExtra("Type", tclType));
+        switch (name) {
+            case "wifi": all.add(new Intent(Settings.ACTION_WIFI_SETTINGS)); break;
+            case "bluetooth":
+                all.add(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
+                all.add(new Intent("com.google.android.intent.action.CONNECT_INPUT")); // Android TV's pairing screen
+                break;
+            case "sound": all.add(new Intent(Settings.ACTION_SOUND_SETTINGS)); break;
+            case "picture": all.add(new Intent(Settings.ACTION_DISPLAY_SETTINGS)); break;
+        }
+        PackageManager pm = getPackageManager();
+        List<Intent> out = new ArrayList<>();
+        for (Intent i : all) {
+            boolean service = TCL_SHOW_WINDOW.equals(i.getAction());
+            if (service ? pm.resolveService(i, 0) != null : i.resolveActivity(pm) != null) out.add(i);
+        }
+        return out;
+    }
+
+    // Opens a shortcut's screen: the first one that starts wins.
+    private void openQuick(String name) {
+        for (Intent i : quickIntents(name)) {
+            try {
+                if (TCL_SHOW_WINDOW.equals(i.getAction())) startService(i);
+                else startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
                 return;
             } catch (Exception ignored) {}
         }
