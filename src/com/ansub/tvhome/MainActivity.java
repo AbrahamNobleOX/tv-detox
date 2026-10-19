@@ -506,13 +506,19 @@ public class MainActivity extends Activity {
     // own package, with TvActivity as its entry point.
     private static final String[][] LIVE_TV = {{"com.android.tv", "com.android.tv.MainActivity"},
             {"com.droidlogic.android.tv", "com.android.tv.TvActivity"}};
+    private static final String INPUT_PLAYER = "com.google.android.tv.inputplayer";
 
     // Opens an HDMI input: the stock Live TV app first, then Droidlogic's, then whatever the TV picks.
     // Each one is tried only when the one before it can't start, so a TV where the stock app already
-    // worked takes exactly the same path as before.
+    // worked takes exactly the same path as before. The one exception: when the TV itself sends HDMI to
+    // Google TV's input player, that goes first, because some Google TVs ship com.android.tv as a stub
+    // that starts fine but only says "Hello World!" (issue #5).
     private void openInput(String id) {
         Intent view = new Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(id));
         List<Intent> tries = new ArrayList<>();
+        ResolveInfo def = getPackageManager().resolveActivity(view, PackageManager.MATCH_DEFAULT_ONLY);
+        if (def != null && def.activityInfo != null && INPUT_PLAYER.equals(def.activityInfo.packageName))
+            tries.add(new Intent(view).setClassName(INPUT_PLAYER, def.activityInfo.name));
         for (String[] live : LIVE_TV) {
             Intent t = new Intent(view).setClassName(live[0], live[1]);
             if (t.resolveActivity(getPackageManager()) != null) tries.add(t);
