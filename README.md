@@ -125,7 +125,7 @@ If your TV or streaming box runs Android TV or Google TV, it should work. That i
 It runs the same Google TV this is tested on, so it should work. People who've done it report two things:
 
 - The YouTube button on the remote can stop working, and some lose casting. Tell Claude to keep casting on if you use it.
-- Google TV can bring its own home screen back. If that happens, ask Claude to turn off Google TV's home screen and its setup app too.
+- Google TV can bring its own home screen back. If that happens, ask Claude to turn off Google TV's home screen. Leave its setup app on: the TV needs it to start.
 
 </details>
 

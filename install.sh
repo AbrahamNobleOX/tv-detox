@@ -70,17 +70,18 @@ sh_tv cmd package set-home-activity "$ME" >/dev/null 2>&1 || true
 LAUNCHERS="com.google.android.tvlauncher com.google.android.apps.tv.launcherx com.google.android.leanbacklauncher
   com.mitv.tvhome com.amazon.tv.launcher"
 
-# Only real launchers get turned off. Settings, setup and System UI also answer Home, and
-# the TV needs them to start, so they and anything the system keeps always running stay on.
+# Only known launchers get turned off. Settings, setup and System UI also answer Home, and
+# the TV needs them to start, so they, unknown apps and anything always running stay on.
 is_launcher() {
   case "$1" in
     com.ansub.tvhome|com.android.settings|com.android.tv.settings|com.android.systemui|com.android.provision) return 1 ;;
     *setup*|*wraith*|*provision*|*systemui*|*tvcenter*|*.tv.framework*|*.tvinput*) return 1 ;;
   esac
-  sh_tv dumpsys package "$1" | grep -q 'PERSISTENT' && return 1
-  case " $(echo $LAUNCHERS) " in *" $1 "*) return 0 ;; esac
-  case "$1" in *launcher*) return 0 ;; esac
-  return 1
+  case " $(echo $LAUNCHERS) " in *" $1 "*) ;; *) return 1 ;; esac
+  # If we can't read its flags, or it always runs, leave it on.
+  flags=$(sh_tv dumpsys package "$1" 2>/dev/null | grep -m1 'pkgFlags=\[') || return 1
+  case "$flags" in *PERSISTENT*) return 1 ;; esac
+  return 0
 }
 
 # Most TVs' own launchers still win when you press Home. The fix is to turn them off
@@ -90,7 +91,7 @@ if [ "$(current_home)" != "$ME" ]; then
   for p in $(sh_tv cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null \
       | grep / | sed 's|/.*||; s/^ *//' | sort -u); do
     if is_launcher "$p"; then others="$others $p"; continue; fi
-    case "$p" in com.ansub.tvhome|com.android.settings|com.android.tv.settings) ;; *) echo "Leaving $p on: your TV needs it." ;; esac
+    case "$p" in com.ansub.tvhome|com.android.settings|com.android.tv.settings) ;; *) echo "Leaving $p on: it may be needed for your TV to start." ;; esac
   done
   others=$(echo $others | tr ' ' '\n')
   if [ -n "$others" ]; then
