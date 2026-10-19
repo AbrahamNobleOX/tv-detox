@@ -66,11 +66,34 @@ if [ "$(sh_tv getprop ro.build.version.sdk)" -ge 29 ]; then
 fi
 sh_tv cmd package set-home-activity "$ME" >/dev/null 2>&1 || true
 
+# Known TV home screens that are safe to turn off.
+LAUNCHERS="com.google.android.tvlauncher com.google.android.apps.tv.launcherx com.google.android.leanbacklauncher
+  com.mitv.tvhome com.amazon.tv.launcher"
+
+# Only known launchers get turned off. Settings, setup and System UI also answer Home, and
+# the TV needs them to start, so they, unknown apps and anything always running stay on.
+is_launcher() {
+  case "$1" in
+    com.ansub.tvhome|com.android.settings|com.android.tv.settings|com.android.systemui|com.android.provision) return 1 ;;
+    *setup*|*wraith*|*provision*|*systemui*|*tvcenter*|*.tv.framework*|*.tvinput*) return 1 ;;
+  esac
+  case " $(echo $LAUNCHERS) " in *" $1 "*) ;; *) return 1 ;; esac
+  # If we can't read its flags, or it always runs, leave it on.
+  flags=$(sh_tv dumpsys package "$1" 2>/dev/null | grep -m1 'pkgFlags=\[') || return 1
+  case "$flags" in *PERSISTENT*) return 1 ;; esac
+  return 0
+}
+
 # Most TVs' own launchers still win when you press Home. The fix is to turn them off
 # (not uninstall). We save what we turned off on the TV, so undo.sh can turn it back on.
 if [ "$(current_home)" != "$ME" ]; then
-  others=$(sh_tv cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null \
-    | grep / | sed 's|/.*||; s/^ *//' | grep -vx com.ansub.tvhome | grep -v '^com.android.tv.settings$' | sort -u)
+  others=""
+  for p in $(sh_tv cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null \
+      | grep / | sed 's|/.*||; s/^ *//' | sort -u); do
+    if is_launcher "$p"; then others="$others $p"; continue; fi
+    case "$p" in com.ansub.tvhome|com.android.settings|com.android.tv.settings) ;; *) echo "Leaving $p on: it may be needed for your TV to start." ;; esac
+  done
+  others=$(echo $others | tr ' ' '\n')
   if [ -n "$others" ]; then
     echo "Your TV's own home screen keeps taking over:"
     echo "$others" | sed 's/^/  /'
@@ -84,7 +107,9 @@ if [ "$(current_home)" != "$ME" ]; then
         for p in $others; do
           sh_tv pm disable-user --user 0 "$p" >/dev/null && sh_tv "echo $p >> /data/local/tmp/tvhome-disabled.txt"
         done
-        sleep 1
+        # Android saves this a few seconds later. Restarting before then can undo it.
+        echo "Saving the change on the TV, this takes 15 seconds…"
+        sleep 15
         sh_tv cmd package set-home-activity "$ME" >/dev/null 2>&1 || true ;;
       *) echo "Left it on. Your TV may keep opening its own home screen." ;;
     esac
