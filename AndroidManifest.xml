@@ -2,8 +2,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.ansub.tvhome" android:versionCode="7" android:versionName="1.1.0">
     <uses-sdk android:minSdkVersion="21" android:targetSdkVersion="34" />
-    <!-- Only to show the Ethernet shortcut while a cable is connected. -->
+    <!-- Only for the network tile: Wi-Fi, Ethernet or offline, and the Wi-Fi signal. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <!-- Android 11+ only shows apps a home screen asks to see: TV apps and normal apps. -->
     <queries>
         <intent>
@@ -14,7 +15,7 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
         </intent>
-        <!-- Settings screens the Wi-Fi, Bluetooth, Sound and Picture shortcuts open. -->
+        <!-- Settings screens the network tile and the Bluetooth, Sound and Picture shortcuts open. -->
         <intent><action android:name="android.settings.WIFI_SETTINGS" /></intent>
         <intent><action android:name="android.settings.BLUETOOTH_SETTINGS" /></intent>
         <intent><action android:name="com.google.android.intent.action.CONNECT_INPUT" /></intent>
