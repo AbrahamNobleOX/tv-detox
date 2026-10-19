@@ -390,23 +390,39 @@ public class MainActivity extends Activity {
         } else if (SETTINGS.equals(key)) {
             i = new Intent(Settings.ACTION_SETTINGS);
         } else if (isInput(key)) {
-            i = new Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(key));
-            // Prefer a Live TV app that is installed (Droidlogic TVs ship it under their own package);
-            // otherwise let the TV pick. resolveActivity() says yes for a missing package, so ask for the package.
-            for (String[] live : new String[][] {{"com.android.tv", "com.android.tv.MainActivity"},
-                                                 {"com.droidlogic.android.tv", "com.android.tv.TvActivity"}}) {
-                try {
-                    getPackageManager().getApplicationInfo(live[0], 0);
-                    i = new Intent(i).setClassName(live[0], live[1]);
-                    break;
-                } catch (PackageManager.NameNotFoundException ignored) { }
-            }
+            openInput(key);
+            return;
         } else {
             i = launchIntent(getPackageManager(), key);
             if (i == null) return;
         }
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try { startActivity(i); } catch (Exception ignored) {}
+    }
+
+    // Live TV apps an HDMI tile can open, in order. Droidlogic (Amlogic) TVs ship Live TV under their
+    // own package, with TvActivity as its entry point.
+    private static final String[][] LIVE_TV = {{"com.android.tv", "com.android.tv.MainActivity"},
+            {"com.droidlogic.android.tv", "com.android.tv.TvActivity"}};
+
+    // Opens an HDMI input: the stock Live TV app first, then Droidlogic's, then whatever the TV picks.
+    // Each one is tried only when the one before it can't start, so a TV where the stock app already
+    // worked takes exactly the same path as before.
+    private void openInput(String id) {
+        Intent view = new Intent(Intent.ACTION_VIEW, TvContract.buildChannelUriForPassthroughInput(id));
+        List<Intent> tries = new ArrayList<>();
+        for (String[] live : LIVE_TV) {
+            Intent t = new Intent(view).setClassName(live[0], live[1]);
+            if (t.resolveActivity(getPackageManager()) != null) tries.add(t);
+        }
+        tries.add(view);
+        for (Intent t : tries) {
+            t.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try {
+                startActivity(t);
+                return;
+            } catch (Exception ignored) {}
+        }
     }
 
     interface Pick { void at(int which); }
