@@ -180,7 +180,7 @@ Yes. You only need `adb`. On a Mac, run `brew install android-platform-tools`. O
 ```sh
 sh install.sh <TV_IP>                                               # picks your TV apps for you
 sh install.sh <TV_IP> "com.netflix.ninja,com.hulu.livingroomplus"   # or choose them
-sh install.sh <TV_IP> "" "wifi,bluetooth,sound,picture"              # add settings shortcuts
+sh install.sh <TV_IP> "" "wifi,ethernet,bluetooth,sound,picture"    # add settings shortcuts
 ```
 
 Most TVs keep opening their own home screen, so the script offers to turn that off. Nothing is uninstalled.
@@ -205,14 +205,14 @@ To add an app, pick the **Add app** tile in the bottom row. Add as many apps as 
 <summary><b>Can I get Wi-Fi and Bluetooth one press away?</b></summary>
 <br>
 
-Yes. Small **Wi-Fi**, **Bluetooth**, **Sound** and **Picture** shortcuts can sit next to the clock. They're off unless you ask for them:
+Yes. Small **Wi-Fi**, **Ethernet**, **Bluetooth**, **Sound** and **Picture** shortcuts can sit next to the clock. They're off unless you ask for them:
 
 ```sh
-sh install.sh <TV_IP> "" "wifi,bluetooth,sound,picture"   # pick any of them, in any order
-sh install.sh <TV_IP> "" "none"                           # take them away
+sh install.sh <TV_IP> "" "wifi,ethernet,bluetooth,sound,picture"   # pick any of them, in any order
+sh install.sh <TV_IP> "" "none"                                    # take them away
 ```
 
-Press **Up** from your apps to reach them. A shortcut your TV has no screen for is left out. On TCL TVs, Sound and Picture open TCL's own panels.
+Press **Up** from your apps to reach them. Ethernet only shows while a cable is connected. A shortcut your TV has no screen for is left out. On TCL TVs, Sound and Picture open TCL's own panels.
 
 </details>
 

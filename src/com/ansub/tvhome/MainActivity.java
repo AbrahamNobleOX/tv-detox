@@ -22,6 +22,10 @@ import android.graphics.drawable.LayerDrawable;
 import android.media.tv.TvContract;
 import android.media.tv.TvInputInfo;
 import android.media.tv.TvInputManager;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.os.Bundle;
 import android.provider.Settings;
 import android.util.TypedValue;
@@ -56,7 +60,8 @@ public class MainActivity extends Activity {
     // Missing apps are skipped. Topping up stops at six apps, but a chosen list can be any length:
     // apps wrap into rows of six, like Apple TV, and the page scrolls down once they don't all fit.
     // On the TV, hold OK on an app (or press Menu) to move or remove it, or add another; that saves list 1.
-    // Settings shortcuts next to the clock are off until picked the same way: --es quick "wifi,bluetooth,sound,picture"
+    // Settings shortcuts next to the clock are off until picked the same way:
+    //   --es quick "wifi,ethernet,bluetooth,sound,picture"
     // (--es quick none  takes them away again).
     private static final String PREFS = "config";
     private static final List<String> NOT_APPS = Arrays.asList("com.android.vending", "com.android.tv.settings",
@@ -70,9 +75,11 @@ public class MainActivity extends Activity {
 
     // Settings shortcuts: name, label, icon. Tile keys are QUICK + name.
     private static final String QUICK = "quick:";
-    private static final String[] QUICK_NAMES = {"wifi", "bluetooth", "sound", "picture"};
-    private static final String[] QUICK_LABELS = {"Wi-Fi", "Bluetooth", "Sound", "Picture"};
-    private static final int[][] QUICK_ICONS = {LineIcon.WIFI, LineIcon.BLUETOOTH, LineIcon.SOUND, LineIcon.PICTURE};
+    // Ethernet only shows while a cable is connected.
+    private static final String[] QUICK_NAMES = {"wifi", "ethernet", "bluetooth", "sound", "picture"};
+    private static final String[] QUICK_LABELS = {"Wi-Fi", "Ethernet", "Bluetooth", "Sound", "Picture"};
+    private static final int[][] QUICK_ICONS = {LineIcon.WIFI, LineIcon.ETHERNET, LineIcon.BLUETOOTH, LineIcon.SOUND,
+            LineIcon.PICTURE};
     // TCL keeps its own Picture and Sound panels in a service; Android's Sound page is missing there.
     private static final String TCL_SHOW_WINDOW = "com.tcl.settings.SHOW_WINDOW";
 
@@ -98,6 +105,23 @@ public class MainActivity extends Activity {
     private final BroadcastReceiver packagesChanged = new BroadcastReceiver() {
         @Override public void onReceive(Context c, Intent i) { dirty = true; }
     };
+
+    // Plugging an Ethernet cable in or out shows or hides the Ethernet shortcut, right away if the
+    // home screen is in front, else when it next comes back.
+    private boolean resumed;
+    private final ConnectivityManager.NetworkCallback ethernetChanged = new ConnectivityManager.NetworkCallback() {
+        @Override public void onAvailable(Network n) { refreshQuick(); }
+        @Override public void onLost(Network n) { refreshQuick(); }
+    };
+
+    private void refreshQuick() {
+        runOnUiThread(() -> {
+            String saved = getSharedPreferences(PREFS, 0).getString("quick", "");
+            if (!saved.toLowerCase(java.util.Locale.ROOT).contains("ethernet")) return;
+            if (resumed) buildTiles();
+            else dirty = true;
+        });
+    }
 
     @Override
     protected void onCreate(Bundle state) {
@@ -143,12 +167,24 @@ public class MainActivity extends Activity {
         f.addDataScheme("package");
         if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(packagesChanged, f, Context.RECEIVER_EXPORTED);
         else registerReceiver(packagesChanged, f);
+
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm != null) cm.registerNetworkCallback(new NetworkRequest.Builder()
+                .addTransportType(NetworkCapabilities.TRANSPORT_ETHERNET).build(), ethernetChanged);
     }
 
     @Override
     protected void onDestroy() {
         unregisterReceiver(packagesChanged);
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm != null) cm.unregisterNetworkCallback(ethernetChanged);
         super.onDestroy();
+    }
+
+    @Override
+    protected void onPause() {
+        resumed = false;
+        super.onPause();
     }
 
     @Override
@@ -210,6 +246,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        resumed = true;
         // Rebuild only when apps were installed, removed or updated.
         if (dirty) {
             dirty = false;
@@ -466,9 +503,21 @@ public class MainActivity extends Activity {
         if (saved == null) return out;
         for (String name : saved.split("[,\\s]+")) {
             int q = Arrays.asList(QUICK_NAMES).indexOf(name.toLowerCase(java.util.Locale.ROOT));
-            if (q >= 0 && !out.contains(q) && !quickIntents(QUICK_NAMES[q]).isEmpty()) out.add(q);
+            if (q < 0 || out.contains(q) || quickIntents(QUICK_NAMES[q]).isEmpty()) continue;
+            if (QUICK_NAMES[q].equals("ethernet") && !ethernetConnected()) continue;
+            out.add(q);
         }
         return out;
+    }
+
+    private boolean ethernetConnected() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (cm == null) return false;
+        for (Network n : cm.getAllNetworks()) {
+            NetworkCapabilities c = cm.getNetworkCapabilities(n);
+            if (c != null && c.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) return true;
+        }
+        return false;
     }
 
     // Screens a shortcut can open, best first, keeping only those this TV has.
@@ -479,7 +528,10 @@ public class MainActivity extends Activity {
             all.add(new Intent(TCL_SHOW_WINDOW).setClassName("com.tcl.settings", "com.tcl.settings.ShowWindowService")
                     .putExtra("Type", tclType));
         switch (name) {
-            case "wifi": all.add(new Intent(Settings.ACTION_WIFI_SETTINGS)); break;
+            case "wifi":
+            case "ethernet": // Android TV's Network & Internet page lists Ethernet too
+                all.add(new Intent(Settings.ACTION_WIFI_SETTINGS));
+                break;
             case "bluetooth":
                 all.add(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
                 all.add(new Intent("com.google.android.intent.action.CONNECT_INPUT")); // Android TV's pairing screen

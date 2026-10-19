@@ -3,14 +3,14 @@
 #
 #   sh install.sh <TV_IP>                          your TV apps, picked for you
 #   sh install.sh <TV_IP> "com.netflix.ninja,com.google.android.youtube.tv"
-#   sh install.sh <TV_IP> "" "wifi,bluetooth,sound,picture"   adds settings shortcuts by the clock
+#   sh install.sh <TV_IP> "" "wifi,ethernet,bluetooth,sound,picture"   adds settings shortcuts by the clock
 #
 # Uses out/tvhome.apk if you built it, otherwise downloads the latest release.
 set -e
 cd "$(dirname "$0")"
 
 TARGET="$1"; APPS="$2"; QUICK="$3"
-[ -n "$TARGET" ] || { echo "Usage: sh install.sh <TV_IP> [\"app1,app2,...\"] [\"wifi,bluetooth,sound,picture\"]" >&2; exit 1; }
+[ -n "$TARGET" ] || { echo "Usage: sh install.sh <TV_IP> [\"app1,app2,...\"] [\"wifi,ethernet,bluetooth,sound,picture\"]" >&2; exit 1; }
 command -v adb >/dev/null 2>&1 || {
   echo "adb is missing. Install it first:" >&2
   echo "  Mac:     brew install android-platform-tools" >&2
