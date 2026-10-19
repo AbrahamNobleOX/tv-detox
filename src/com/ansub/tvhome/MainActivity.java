@@ -1,7 +1,7 @@
 package com.ansub.tvhome;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -30,11 +30,13 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
+import android.view.Window;
+import android.widget.BaseAdapter;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListView;
 import android.widget.TextClock;
 import android.widget.TextView;
 
@@ -61,7 +63,7 @@ public class MainActivity extends Activity {
     private static final String PLAY_STORE = "com.android.vending";
     private static final String SETTINGS = "settings";
     private static final String ADD = "add";
-    private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove"};
+    private static final String[] EDIT_ITEMS = {"Move", "Replace with another app", "Remove from home screen"};
     private static final int PER_ROW = 6, MAX_INPUTS = 4;
 
     // Layout is designed at 1920x1080 and scaled to the TV's real UI size by px().
@@ -78,6 +80,7 @@ public class MainActivity extends Activity {
     private String focusedKey;
     private final List<String> rowApps = new ArrayList<>(); // the top row as shown, in order
     private String movingKey;   // the app being moved with left/right, if any
+    private TextView moveHint;  // shown above the row while moving
     private boolean longPressed; // OK was held: swallow the key-up so the app doesn't open
 
     private final BroadcastReceiver packagesChanged = new BroadcastReceiver() {
@@ -121,6 +124,11 @@ public class MainActivity extends Activity {
         row.setPadding(0, 0, px(MARGIN), 0);
         scroller.addView(row, new FrameLayout.LayoutParams(-2, -2));
         root.addView(scroller, at(0, px(ROW1_TOP), -1, -2));
+
+        moveHint = text(px(24), 0xA8FFFFFF, regular);
+        moveHint.setText("Press \u25C0 \u25B6 to move it, then OK");
+        moveHint.setVisibility(View.GONE);
+        root.addView(moveHint, at(px(MARGIN), px(ROW1_TOP - 64), -2, -2));
 
         setContentView(root);
 
@@ -228,6 +236,7 @@ public class MainActivity extends Activity {
         tiles.clear();
         rowApps.clear();
         movingKey = null;
+        moveHint.setVisibility(View.GONE);
 
         PackageManager pm = getPackageManager();
         int m = px(MARGIN), g = px(GAP), top2 = px(ROW2_TOP);
@@ -336,8 +345,8 @@ public class MainActivity extends Activity {
             if (!ok) return false;
             if (down) {
                 if (ev.getRepeatCount() == 0) longPressed = false;
-                else if (editable && !longPressed
-                        && ev.getEventTime() - ev.getDownTime() >= ViewConfiguration.getLongPressTimeout()) {
+                else if (editable && !longPressed && (ev.isLongPress()
+                        || ev.getEventTime() - ev.getDownTime() >= ViewConfiguration.getLongPressTimeout())) {
                     longPressed = true;
                     showEditMenu(key);
                 }
@@ -379,15 +388,84 @@ public class MainActivity extends Activity {
         try { startActivity(i); } catch (Exception ignored) {}
     }
 
-    private AlertDialog.Builder dialog(String title) {
-        return new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert).setTitle(title);
+    interface Pick { void at(int which); }
+
+    // A side panel in the home screen's own look: a title, then one row per choice, with the same
+    // glass focus as the tiles. Back closes it. iconPkgs (or null) puts each app's icon by its name.
+    private void panel(String title, final List<String> labels, final List<String> iconPkgs, final Pick pick) {
+        final Dialog d = new Dialog(this, android.R.style.Theme_Material_Dialog_NoActionBar);
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(px(48), px(92), px(48), px(48));
+
+        TextView head = text(px(40), Color.WHITE, semibold);
+        head.setText(title);
+        head.setSingleLine(true);
+        head.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        head.setPadding(px(24), 0, px(24), 0);
+        box.addView(head);
+
+        ListView list = new ListView(this);
+        list.setDivider(null);
+        list.setVerticalScrollBarEnabled(false);
+        list.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        GradientDrawable focus = new GradientDrawable();
+        focus.setCornerRadius(px(RADIUS));
+        focus.setColor(0x38FFFFFF);
+        list.setSelector(focus);
+        // Icons load as rows appear, drawn small to save RAM.
+        final PackageManager pm = getPackageManager();
+        final int size = px(48);
+        final Drawable[] icons = new Drawable[labels.size()];
+        list.setAdapter(new BaseAdapter() {
+            @Override public int getCount() { return labels.size(); }
+            @Override public Object getItem(int pos) { return labels.get(pos); }
+            @Override public long getItemId(int pos) { return pos; }
+            @Override public View getView(int pos, View convert, ViewGroup parent) {
+                TextView t = convert != null ? (TextView) convert : text(px(30), 0xE6FFFFFF, regular);
+                t.setText(labels.get(pos));
+                t.setSingleLine(true);
+                t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                t.setGravity(Gravity.CENTER_VERTICAL);
+                t.setMinHeight(px(88));
+                t.setPadding(px(24), 0, px(24), 0);
+                Drawable icon = null;
+                if (iconPkgs != null) {
+                    if (icons[pos] == null) {
+                        try { icons[pos] = fit(pm.getApplicationIcon(iconPkgs.get(pos)), size, size); }
+                        catch (Exception e) { icons[pos] = new ColorDrawable(Color.TRANSPARENT); }
+                        icons[pos].setBounds(0, 0, size, size);
+                    }
+                    icon = icons[pos];
+                }
+                t.setCompoundDrawablesRelative(icon, null, null, null);
+                t.setCompoundDrawablePadding(px(24));
+                return t;
+            }
+        });
+        list.setOnItemClickListener((parent, v, pos, id) -> {
+            d.dismiss();
+            pick.at(pos);
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, 0, 1f);
+        lp.topMargin = px(36);
+        box.addView(list, lp);
+
+        d.setContentView(box);
+        Window w = d.getWindow();
+        w.setBackgroundDrawable(new ColorDrawable(0xF7161113));
+        w.setLayout(px(640), -1);
+        w.setGravity(Gravity.END);
+        w.setDimAmount(0.5f);
+        d.show();
     }
 
-    // Hold OK (or Menu) on a top-row app: move it, remove it, or add another.
+    // Hold OK (or Menu) on a top-row app: move it, swap it for another, or take it off the home
+    // screen. Removing only takes the tile away: the app stays installed and can be added back.
     private void showEditMenu(final String key) {
         final int index = rowApps.indexOf(key);
         if (index < 0) return;
-        dialog(labelOf(key)).setItems(EDIT_ITEMS, (d, which) -> {
+        panel(labelOf(key), Arrays.asList(EDIT_ITEMS), null, which -> {
             if (which == 0) startMove(key);
             else if (which == 1) showAddMenu(index);
             else {
@@ -396,7 +474,7 @@ public class MainActivity extends Activity {
                 focusedKey = rowApps.isEmpty() ? ADD : rowApps.get(Math.min(index, rowApps.size() - 1));
                 buildTiles();
             }
-        }).show();
+        });
     }
 
     // Every launchable app that isn't on the top row yet, by name. The pick is added at the end,
@@ -415,36 +493,18 @@ public class MainActivity extends Activity {
             }
         }
         if (byLabel.isEmpty()) {
-            dialog("No other apps to add").setPositiveButton(android.R.string.ok, null).show();
+            panel("Every app is already here", Collections.singletonList("OK"), null, which -> {});
             return;
         }
         final List<String> pkgs = new ArrayList<>(byLabel.values());
-        // Each row shows the app's icon by its name. Icons load as rows appear, drawn small to save RAM.
-        final Drawable[] icons = new Drawable[pkgs.size()];
-        final int size = Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 32,
-                getResources().getDisplayMetrics()));
-        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.select_dialog_item,
-                new ArrayList<>(byLabel.keySet())) {
-            @Override public View getView(int pos, View convert, ViewGroup parent) {
-                TextView t = (TextView) super.getView(pos, convert, parent);
-                if (icons[pos] == null) {
-                    try { icons[pos] = fit(pm.getApplicationIcon(pkgs.get(pos)), size, size); }
-                    catch (Exception e) { icons[pos] = new ColorDrawable(Color.TRANSPARENT); }
-                    icons[pos].setBounds(0, 0, size, size);
-                }
-                t.setCompoundDrawablesRelative(icons[pos], null, null, null);
-                t.setCompoundDrawablePadding(size / 2);
-                return t;
-            }
-        };
-        String title = replaceIndex < 0 ? "Add app" : "Replace " + labelOf(rowApps.get(replaceIndex));
-        dialog(title).setAdapter(adapter, (d, which) -> {
+        String title = replaceIndex < 0 ? "Add an app" : "Replace " + labelOf(rowApps.get(replaceIndex));
+        panel(title, new ArrayList<>(byLabel.keySet()), pkgs, which -> {
             if (replaceIndex < 0) rowApps.add(pkgs.get(which));
             else rowApps.set(replaceIndex, pkgs.get(which));
             saveRow();
             focusedKey = pkgs.get(which);
             buildTiles();
-        }).show();
+        });
     }
 
     private String labelOf(String pkg) {
@@ -472,6 +532,7 @@ public class MainActivity extends Activity {
         outline.setCornerRadius(px(RADIUS));
         outline.setStroke(px(4), Color.WHITE);
         ((FrameLayout) card).setForeground(outline);
+        moveHint.setVisibility(View.VISIBLE);
         card.requestFocus();
     }
 
@@ -501,6 +562,7 @@ public class MainActivity extends Activity {
                 movingKey = null;
                 longPressed = false;
                 ((FrameLayout) tile(key)).setForeground(null);
+                moveHint.setVisibility(View.GONE);
                 saveRow();
             }
             return true;
