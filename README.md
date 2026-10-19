@@ -49,15 +49,23 @@ My TV is a <brand and model>.
    safe to turn off, needed by the TV, and apps I use.
    Check free memory.
 3. Ask me before every change. Turn apps off instead of
-   deleting them. Never turn off Google Play, the keyboard,
-   Bluetooth or my HDMI inputs. Keep a list of what you
-   changed and how to undo it.
-4. Install the home screen: download
+   deleting them. Keep a list of what you changed and how
+   to undo it.
+4. Never turn off: Google Play services
+   (com.google.android.gms), Google Play, Settings,
+   System UI, setup apps, the keyboard, Bluetooth, my HDMI
+   inputs, the TV's input and tuner framework, or anything
+   else the TV needs to start. If you're not sure, leave
+   it on.
+5. Install the home screen: download
    https://github.com/Ansub/tv-detox and run its
    install.sh with my TV and these apps: <your apps>.
-5. Turn off animations and the screensaver, and make the TV
+6. Turn off animations and the screensaver, and make the TV
    sleep after 5 minutes.
-6. Restart the TV and show me free memory before and after.
+7. Wait 30 seconds after the last change, then restart the
+   TV once and check it starts up normally before you say
+   you're done. Show me free memory before
+   and after.
 ```
 
 That's it. It asks you before every change.
@@ -151,7 +159,7 @@ That works the same. Your laptop talks to the TV over its IP address on your hom
 <summary><b>Can I just do the cleanup and keep my TV's home screen?</b></summary>
 <br>
 
-Yes. Leave out step 4 of the prompt ("Install the home screen"). Your TV looks the same, just with the junk turned off.
+Yes. Leave out step 5 of the prompt ("Install the home screen"). Your TV looks the same, just with the junk turned off.
 
 </details>
 
@@ -225,6 +233,30 @@ sh undo.sh <TV_IP>
 ```
 
 This turns your TV's own home screen back on and removes this one. To undo the cleanup too, ask Claude or Codex to reverse everything on its list.
+
+</details>
+
+<details>
+<summary><b>My TV is stuck restarting</b></summary>
+<br>
+
+Your laptop can often still connect for a few seconds each time the TV starts. Use that to turn everything back on:
+
+```sh
+adb connect <TV_IP>
+adb wait-for-device
+adb shell pm list packages -d
+```
+
+That lists everything that's turned off. Turn each one back on with `adb shell pm enable <package>`, or all of them at once:
+
+```sh
+for p in $(adb shell pm list packages -d | tr -d '\r' | sed 's/package://'); do adb shell pm enable "$p"; done
+```
+
+To undo just the home screen, run `sh undo.sh <TV_IP>`. Then restart the TV. You can redo the cleanup later, one app at a time.
+
+If the laptop never connects, use the TV's recovery mode or a factory reset. How you get there depends on the brand and model, so check your TV maker's support page.
 
 </details>
 
