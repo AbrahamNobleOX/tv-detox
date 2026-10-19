@@ -15,6 +15,7 @@ final class LineIcon extends Drawable {
             0, 80, 120, 1, 160, 120};
     static final int[] SETTINGS = {0, 40, 70, 1, 140, 70, 0, 180, 70, 1, 200, 70, 0, 40, 170, 1, 60, 170,
             0, 100, 170, 1, 200, 170, 3, 160, 70, 20, 3, 80, 170, 20};
+    static final int[] PLUS = {0, 120, 50, 1, 120, 190, 0, 50, 120, 1, 190, 120};
 
     private final int[] ops;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);

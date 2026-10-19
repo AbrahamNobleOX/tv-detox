@@ -112,6 +112,20 @@ Most TVs keep opening their own home screen, so the script offers to turn that o
 </details>
 
 <details>
+<summary><b>How do I change the apps on the home screen?</b></summary>
+<br>
+
+Use the remote. Hold **OK** on an app (or press **Menu**) to:
+
+- **Move** it: use the arrows to slide it to a new spot, then press **OK** to finish.
+- **Replace** it: pick another app to take its place.
+- **Remove** it from the home screen. The app stays installed, and you can add it back any time.
+
+To add an app, pick the **Add app** tile in the bottom row. Add as many apps as you like: they wrap into rows of six, and the page scrolls once there are more than twelve. Your changes are kept until you run `install.sh` with a new app list.
+
+</details>
+
+<details>
 <summary><b>How do I undo it?</b></summary>
 <br>
 
@@ -127,7 +141,7 @@ This turns your TV's own home screen back on and removes this one. To undo the c
 <summary><b>For developers: build it yourself</b></summary>
 <br>
 
-1. Put your default apps in `apps.txt` (package names, one per line, first six show). You can also pass them to `install.sh` instead.
+1. Put your default apps in `apps.txt` (package names, one per line). You can also pass them to `install.sh` instead.
 2. Install Java 17 and the Android SDK. On a Mac:
    ```sh
    brew install openjdk@17
