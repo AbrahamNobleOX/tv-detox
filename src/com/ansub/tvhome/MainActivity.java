@@ -100,6 +100,7 @@ public class MainActivity extends Activity {
     private int tileW, tileH, gridTop; // app grid geometry, set by buildTiles
     private final List<View> tiles = new ArrayList<>();
     private boolean dirty = true;
+    private String shownLang; // the TV's language when the page was built
     private String focusedKey;
     private final List<String> rowApps = new ArrayList<>(); // the top row as shown, in order
     private String movingKey;   // the app being moved with left/right, if any
@@ -142,7 +143,9 @@ public class MainActivity extends Activity {
 
         LinearLayout clock = new LinearLayout(this);
         clock.setOrientation(LinearLayout.VERTICAL);
-        TextClock date = clock("EEEE, d MMMM", "EEEE, d MMMM", px(30), 0xA8FFFFFF, regular);
+        shownLang = Strings.lang();
+        String day = Strings.datePattern();
+        TextClock date = clock(day, day, px(30), 0xA8FFFFFF, regular);
         TextClock time = clock("h:mm", "H:mm", px(176), Color.WHITE, semibold);
         time.setLetterSpacing(-0.028f);
         time.setFontFeatureSettings("tnum");
@@ -154,7 +157,7 @@ public class MainActivity extends Activity {
         root.addView(clock, at(px(MARGIN), px(92), -2, -2));
 
         moveHint = text(px(24), 0xA8FFFFFF, regular);
-        moveHint.setText("Use the arrows to move it, then press OK");
+        moveHint.setText(Strings.t("Use the arrows to move it, then press OK"));
         moveHint.setVisibility(View.GONE);
         root.addView(moveHint, at(px(MARGIN), px(ROW1_TOP - 64), -2, -2));
 
@@ -252,6 +255,13 @@ public class MainActivity extends Activity {
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
     }
 
+    // The TV's language changed: start over so the labels and the date follow it.
+    @Override
+    public void onConfigurationChanged(android.content.res.Configuration c) {
+        super.onConfigurationChanged(c);
+        if (!Strings.lang().equals(shownLang)) recreate();
+    }
+
     @Override
     public void onBackPressed() { /* home screen: nothing to go back to */ }
 
@@ -334,8 +344,8 @@ public class MainActivity extends Activity {
             addTile(root, PLAY_STORE, "Play Store", null, LineIcon.PLAY, null, m + col++ * (w + g), bottomTop, w, h);
         for (TvInputInfo in : inputs)
             addTile(root, in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), bottomTop, w, h);
-        addTile(root, SETTINGS, "Settings", null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
-        addTile(root, ADD, "Add app", null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
+        addTile(root, SETTINGS, Strings.t("Settings"), null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
+        addTile(root, ADD, Strings.t("Add app"), null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
 
         // Plain icons at the top right, level with the date: any settings shortcuts picked, then the
         // network icon. Added last, so the first app keeps first focus; Up from the apps reaches them.
@@ -345,10 +355,10 @@ public class MainActivity extends Activity {
         int qx = getResources().getDisplayMetrics().widthPixels - m + (ib - px(ICON_SIZE)) / 2
                 - (quick.size() + 1) * ib - quick.size() * ig;
         for (int q : quick) {
-            addIcon(QUICK + QUICK_NAMES[q], QUICK_LABELS[q], new LineIcon(QUICK_ICONS[q]), qx);
+            addIcon(QUICK + QUICK_NAMES[q], Strings.t(QUICK_LABELS[q]), new LineIcon(QUICK_ICONS[q]), qx);
             qx += ib + ig;
         }
-        netIcon = addIcon(NETWORK, "Network", null, qx);
+        netIcon = addIcon(NETWORK, Strings.t("Network"), null, qx);
         netState = -1;
         refreshNetwork();
 
@@ -589,7 +599,7 @@ public class MainActivity extends Activity {
             netIcon.setImageDrawable(new LayerDrawable(new Drawable[] {fan, new LineIcon(top)}));
         }
         ((View) netIcon.getParent()).setContentDescription(
-                state == OFFLINE ? "Offline" : state == ETHERNET ? "Ethernet" : "Wi-Fi");
+                state == OFFLINE ? Strings.t("Offline") : state == ETHERNET ? "Ethernet" : "Wi-Fi");
     }
 
     // Wi-Fi settings (on Android TV that page lists Ethernet too), else the TV's network page, else Settings.
@@ -723,13 +733,15 @@ public class MainActivity extends Activity {
         bg.setColor(0xFF231D1F);
         bg.setStroke(Math.max(1, px(2)), 0x17FFFFFF);
         box.setBackground(bg);
+        float widest = 0; // some languages need more room than the tile is wide
         for (int i = 0; i < items.length; i++) {
             final int which = i;
             final TextView t = text(px(26), 0xD9FFFFFF, regular);
-            t.setText(items[i]);
+            t.setText(Strings.t(items[i]));
             t.setSingleLine(true);
             t.setGravity(Gravity.CENTER_VERTICAL);
             t.setPadding(px(22), 0, px(22), 0);
+            widest = Math.max(widest, t.getPaint().measureText(t.getText().toString()) + 2 * px(22) + 2 * pad);
             final GradientDrawable focus = new GradientDrawable();
             focus.setCornerRadius(px(RADIUS - pad));
             focus.setColor(Color.TRANSPARENT);
@@ -751,7 +763,7 @@ public class MainActivity extends Activity {
         int[] at = new int[2];
         anchor.getLocationOnScreen(at);
         int tileBottom = at[1] + Math.round(anchor.getHeight() * anchor.getScaleY());
-        int w = Math.max(Math.round(anchor.getWidth() * anchor.getScaleX()), px(320));
+        int w = Math.max(Math.max(Math.round(anchor.getWidth() * anchor.getScaleX()), px(320)), (int) Math.ceil(widest));
         int h = items.length * rowH + 2 * pad;
         int y = tileBottom + px(64);
         if (y + h > getResources().getDisplayMetrics().heightPixels - px(24)) y = at[1] - h - px(16);
@@ -810,11 +822,12 @@ public class MainActivity extends Activity {
             }
         }
         if (byLabel.isEmpty()) {
-            panel("Every app is already here", Collections.singletonList("OK"), null, which -> {});
+            panel(Strings.t("Every app is already here"), Collections.singletonList("OK"), null, which -> {});
             return;
         }
         final List<String> pkgs = new ArrayList<>(byLabel.values());
-        String title = replaceIndex < 0 ? "Add an app" : "Replace " + labelOf(rowApps.get(replaceIndex));
+        String title = replaceIndex < 0 ? Strings.t("Add an app")
+                : String.format(Strings.t("Replace %s"), labelOf(rowApps.get(replaceIndex)));
         panel(title, new ArrayList<>(byLabel.keySet()), pkgs, which -> {
             if (replaceIndex < 0) rowApps.add(pkgs.get(which));
             else rowApps.set(replaceIndex, pkgs.get(which));
