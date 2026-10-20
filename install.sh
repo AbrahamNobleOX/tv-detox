@@ -117,7 +117,8 @@ turned_off=""
 # anything can be put back. So on Google TV nothing is turned off unless you ask with GOOGLE_TV=1.
 installed() { sh_tv pm list packages "$1" 2>/dev/null | grep -Fqx "package:$1"; }
 google_tv=
-if installed "$LAUNCHERX" || installed "$WRAITH"; then google_tv=1; fi
+# Google TV's own home screen is what makes it Google TV. Android TV has the setup app too.
+if installed "$LAUNCHERX"; then google_tv=1; fi
 may_turn_off=1
 if [ -n "$google_tv" ] && [ "$GOOGLE_TV" != 1 ]; then
   may_turn_off=
