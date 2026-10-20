@@ -398,7 +398,61 @@ public class MainActivity extends Activity {
     public boolean dispatchKeyEvent(KeyEvent e) {
         userActed = true;
         keyPressed = true;
+        if (e.getAction() == KeyEvent.ACTION_DOWN && e.getRepeatCount() == 0 && movingKey == null) {
+            int code = e.getKeyCode();
+            int dir = code == KeyEvent.KEYCODE_DPAD_LEFT ? View.FOCUS_LEFT : code == KeyEvent.KEYCODE_DPAD_RIGHT
+                    ? View.FOCUS_RIGHT : code == KeyEvent.KEYCODE_DPAD_UP ? View.FOCUS_UP
+                    : code == KeyEvent.KEYCODE_DPAD_DOWN ? View.FOCUS_DOWN : 0;
+            if (dir != 0 && wrapFocus(dir)) return true;
+        }
         return super.dispatchKeyEvent(e);
+    }
+
+    // At an edge, focus wraps around instead of stopping: Right on the last tile of a row goes to its
+    // first, Left the other way; Up from the top goes to the bottom row (the tile nearest across), Down
+    // from the bottom to the top. Only on a fresh press, so holding a direction doesn't spin round.
+    // Left and Right stay in the row: Android would otherwise take Right from the last app up to the
+    // network icon, which sits further right.
+    private boolean wrapFocus(int dir) {
+        View f = getCurrentFocus();
+        if (f == null || root == null) return false;
+        android.graphics.Rect from = bounds(f);
+        boolean across = dir == View.FOCUS_LEFT || dir == View.FOCUS_RIGHT;
+        View next = f.focusSearch(dir);
+        if (next != null && (!across || Math.abs(bounds(next).centerY() - from.centerY()) <= from.height() / 2))
+            return false;
+        View best = null;
+        android.graphics.Rect bestR = null;
+        for (View v : root.getFocusables(View.FOCUS_FORWARD)) {
+            if (v == f) continue;
+            android.graphics.Rect r = bounds(v);
+            if (across) {
+                if (Math.abs(r.centerY() - from.centerY()) > from.height() / 2) continue; // same row only
+                if (best == null || (dir == View.FOCUS_RIGHT ? r.left < bestR.left : r.left > bestR.left)) {
+                    best = v;
+                    bestR = r;
+                }
+            } else {
+                // The far row first (the top one going Down, the bottom one going Up), then nearest across.
+                boolean farther = best == null || (dir == View.FOCUS_DOWN ? r.top < bestR.top - bestR.height() / 2
+                        : r.top > bestR.top + bestR.height() / 2);
+                boolean sameRow = best != null && Math.abs(r.centerY() - bestR.centerY()) <= bestR.height() / 2;
+                if (farther || (sameRow && Math.abs(r.centerX() - from.centerX()) < Math.abs(bestR.centerX() - from.centerX()))) {
+                    best = v;
+                    bestR = r;
+                }
+            }
+        }
+        if (best == null) return false;
+        best.requestFocus();
+        return true;
+    }
+
+    // A view's place on the page, ignoring the focus lift (scale), so rows still line up.
+    private android.graphics.Rect bounds(View v) {
+        android.graphics.Rect r = new android.graphics.Rect(0, 0, v.getWidth(), v.getHeight());
+        root.offsetDescendantRectToMyCoords(v, r);
+        return r;
     }
 
     @Override
