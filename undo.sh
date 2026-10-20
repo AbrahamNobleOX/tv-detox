@@ -26,7 +26,10 @@ turn_on() {
   adb -s "$TV" shell pm enable "$1" >/dev/null 2>&1 || true
   rc=0; is_off "$1" || rc=$?
   case $rc in
-    1) echo "Turned $1 back on" ;;
+    1) echo "Turned $1 back on"
+       # Google TV's home screen can come back without its notification access (#16).
+       [ "$1" = com.google.android.apps.tv.launcherx ] && adb -s "$TV" shell cmd notification allow_listener \
+         com.google.android.apps.tv.launcherx/.coreservices.notificationlistener.TvNotificationListenerService >/dev/null 2>&1 || true ;;
     0) echo "Couldn't turn $1 back on." >&2; failed=1 ;;
     *) echo "Couldn't check that $1 is back on." >&2; failed=1 ;;
   esac
