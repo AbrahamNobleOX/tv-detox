@@ -170,16 +170,27 @@ fi
 reverted=
 winner=$(current_home)
 if [ -n "$turned_off" ] && [ "$winner" != "$ME" ]; then
+  revert_failed=
   for p in $turned_off; do
     sh_tv pm enable "$p" >/dev/null 2>&1 || true
-    if is_off "$p"; then echo "Couldn't turn $p back on. Run undo.sh." >&2; continue; fi
-    sh_tv "sed -i '/^$p\$/d' /data/local/tmp/tvhome-disabled.txt" || true
+    # Only forget an app once the TV says it's on. If adb fails, keep it on undo.sh's list.
+    if ! state=$(sh_tv pm list packages -d "$p" 2>/dev/null); then
+      echo "Couldn't check that $p is back on. Run undo.sh." >&2; revert_failed=1; continue
+    elif printf '%s\n' "$state" | grep -Fqx "package:$p"; then
+      echo "Couldn't turn $p back on. Run undo.sh." >&2; revert_failed=1; continue
+    fi
+    sh_tv "sed -i '/^$p\$/d' /data/local/tmp/tvhome-disabled.txt" \
+      || echo "Couldn't update the undo list for $p. undo.sh will just turn it on again." >&2
     # Google TV's home screen can come back without its notification access (#16).
     [ "$p" = "$LAUNCHERX" ] && sh_tv cmd notification allow_listener \
       "$LAUNCHERX/.coreservices.notificationlistener.TvNotificationListenerService" >/dev/null 2>&1 || true
   done
   reverted=1
-  echo "Home opened $winner instead of this home screen, so what was turned off is back on."
+  if [ -n "$revert_failed" ]; then
+    echo "Home opened $winner instead of this home screen. Some apps couldn't be turned back on: run undo.sh."
+  else
+    echo "Home opened $winner instead of this home screen, so what was turned off is back on."
+  fi
 fi
 
 adb -s "$TV" shell input keyevent KEYCODE_HOME
