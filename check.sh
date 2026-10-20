@@ -10,12 +10,12 @@
 #   global window_animation_scale 0            a setting (global, secure or system)
 #   device_config activity_manager max_cached_processes 4
 set -e
-cd "$(dirname "$0")"
 
 TARGET="$1"; FIX=; LIST=
 shift 2>/dev/null || true
 for a in "$@"; do case "$a" in --fix) FIX=1 ;; *) LIST=$a ;; esac; done
 [ -n "$TARGET" ] || { echo "Usage: sh check.sh <TV_IP> [--fix] [list.txt]" >&2; exit 1; }
+[ -z "$LIST" ] || { [ -f "$LIST" ] && [ -r "$LIST" ]; } || { echo "Can't read $LIST." >&2; exit 2; }
 case "$TARGET" in
   *.*.*.*:*) TV=$TARGET ;;
   *.*.*.*)   TV=$TARGET:5555 ;;
@@ -35,6 +35,7 @@ check() { # name, test command, fix command
 is_off() { sh_tv pm list packages -d "$1" | grep -qx "package:$1"; }
 installed() { sh_tv pm list packages "$1" | grep -qx "package:$1"; }
 
+# shellcheck disable=SC2034 # ME is read inside the eval'd check strings below
 ME=com.ansub.tvhome/.MainActivity
 home() { sh_tv cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1; }
 echo "Home screen"
