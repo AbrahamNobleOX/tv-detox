@@ -12,7 +12,7 @@ fail() {
   exit 1
 }
 # Waits up to 15s for the home screen to be in front.
-wait_home() { for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do focus | grep -q com.ansub.tvhome && return 0; sleep 1; done; return 1; }
+wait_home() { for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do focus | grep -q com.ansub.tvhome && return 0; sleep 1; done; return 1; }
 ui() { adb -s "$TV" shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb -s "$TV" shell cat /sdcard/ui.xml; }
 focus() { adb -s "$TV" shell dumpsys window | grep -m1 mCurrentFocus; }
 
