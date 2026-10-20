@@ -954,9 +954,16 @@ public class MainActivity extends Activity {
     // The name set in Settings > Inputs (like "Bedroom"), else the TV's own name (like "HDMI 1").
     private String inputLabel(TvInputInfo in) {
         CharSequence custom = in.loadCustomLabel(this);
-        if (custom != null && custom.length() > 0) return custom.toString();
+        if (custom != null && custom.length() > 0) return withoutDeviceType(custom.toString());
         CharSequence label = in.loadLabel(this);
-        return label != null && label.length() > 0 ? label.toString() : "HDMI";
+        return label != null && label.length() > 0 ? withoutDeviceType(label.toString()) : "HDMI";
+    }
+
+    // Philips stores a name as "name&DEVICE_TYPE" (like "Computer&COMPUTER"), so show the name only.
+    // Short endings stay, so names like "AT&T" or "B&O" on other TVs are left alone.
+    private static String withoutDeviceType(String label) {
+        int amp = label.lastIndexOf('&');
+        return amp > 0 && label.substring(amp + 1).matches("[A-Z][A-Z0-9_]{2,}") ? label.substring(0, amp).trim() : label;
     }
 
     private boolean userInstalled(String pkg) {
