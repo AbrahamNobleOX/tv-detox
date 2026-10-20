@@ -15,6 +15,7 @@ TARGET="$1"; FIX=; LIST=
 shift 2>/dev/null || true
 for a in "$@"; do case "$a" in --fix) FIX=1 ;; *) LIST=$a ;; esac; done
 [ -n "$TARGET" ] || { echo "Usage: sh check.sh <TV_IP> [--fix] [list.txt]" >&2; exit 1; }
+[ -z "$LIST" ] || { [ -f "$LIST" ] && [ -r "$LIST" ]; } || { echo "Can't read $LIST." >&2; exit 2; }
 case "$TARGET" in
   *.*.*.*:*) TV=$TARGET ;;
   *.*.*.*)   TV=$TARGET:5555 ;;
