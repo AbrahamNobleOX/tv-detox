@@ -5,6 +5,9 @@
 #   sh install.sh <TV_IP> "com.netflix.ninja,com.google.android.youtube.tv"
 #   sh install.sh <TV_IP> "" "bluetooth,sound,picture"   adds settings shortcuts by the clock
 #
+# On Google TV (Chromecast with Google TV and others) the TV's own home screen is left on.
+# GOOGLE_TV=1 turns it off anyway; only do that if you can reconnect over USB or port 5555.
+#
 # Uses out/tvhome.apk if you built it, otherwise downloads the latest release.
 set -e
 cd "$(dirname "$0")"
@@ -108,11 +111,28 @@ turn_off() {
 WRAITH=com.google.android.tungsten.setupwraith
 LAUNCHERX=com.google.android.apps.tv.launcherx
 turned_off=""
+
+# Google TV (Chromecast with Google TV and many newer TVs): turning its home screen off has left
+# some of these stuck restarting, and over Wireless debugging the connection can drop before
+# anything can be put back. So on Google TV nothing is turned off unless you ask with GOOGLE_TV=1.
+installed() { sh_tv pm list packages "$1" 2>/dev/null | grep -Fqx "package:$1"; }
+google_tv=
+if installed "$LAUNCHERX" || installed "$WRAITH"; then google_tv=1; fi
+may_turn_off=1
+if [ -n "$google_tv" ] && [ "$GOOGLE_TV" != 1 ]; then
+  may_turn_off=
+  if [ "$(current_home)" != "$ME" ]; then
+    echo "This is a Google TV, so its own home screen stays on."
+    echo "Turning it off has left some Google TVs (like Chromecast) stuck restarting."
+    echo "The new home screen is installed, but Home keeps opening Google TV's. The cleanup still works."
+    echo "Only if you can reconnect to this TV over USB or port 5555, run again with GOOGLE_TV=1."
+  fi
+fi
 home_apps() { sh_tv cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME 2>/dev/null \
   | grep / | sed 's|/.*||; s/^ *//' | sort -u; }
 
 # Most TVs' own launchers still win when you press Home. The fix is to turn them off.
-if [ "$(current_home)" != "$ME" ]; then
+if [ -n "$may_turn_off" ] && [ "$(current_home)" != "$ME" ]; then
   others=""
   for p in $(home_apps); do
     if is_launcher "$p"; then others="$others $p"; continue; fi
@@ -139,7 +159,7 @@ fi
 # off, the TV has finished its first setup, and the system doesn't keep it always running.
 # YES=1 doesn't cover it: it needs its own answer, or YES_SETUP=1.
 off_list=$(sh_tv pm list packages -d "$LAUNCHERX" 2>/dev/null) || off_list=
-if [ "$(current_home | sed 's|/.*||')" = "$WRAITH" ] \
+if [ -n "$may_turn_off" ] && [ "$(current_home | sed 's|/.*||')" = "$WRAITH" ] \
     && printf '%s\n' "$off_list" | grep -Fqx "package:$LAUNCHERX"; then
   flags=$(sh_tv dumpsys package "$WRAITH" 2>/dev/null | sed -n '/pkgFlags=\[/{p;q;}')
   [ -n "$flags" ] || flags=PERSISTENT
