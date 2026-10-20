@@ -252,6 +252,20 @@ Yes. Leave out step 5 of the prompt ("Install the home screen"). Your TV looks t
 </details>
 
 <details>
+<summary><b>How do I know which apps are safe to turn off?</b></summary>
+<br>
+
+Run the planner. It reads the TV and prints every app with a verdict, changing nothing:
+
+```sh
+sh candidates.sh <TV_IP>
+```
+
+`never` the TV needs it, `keep` it carries a feature you may use, `safe` common junk, `review` unknown. [docs/debloat.md](docs/debloat.md) explains the rules behind the verdicts, the traps — apps Android restarts whatever you do, the app that carries casting, and package names that hide what the app really is — and the never-touch and commonly-safe lists.
+
+</details>
+
+<details>
 <summary><b>Why not just use Projectivy Launcher?</b></summary>
 <br>
 
@@ -304,6 +318,8 @@ sh install.sh <TV_IP> "" "bluetooth,sound,picture"    # add settings shortcuts
 ```
 
 Most TVs keep opening their own home screen, so the script offers to turn that off. Nothing is uninstalled.
+
+The cleanup half is a judgement call per app, so it's not automated. `sh candidates.sh <TV_IP>` lists every app with a verdict and [docs/debloat.md](docs/debloat.md) gives the rules, if you'd rather decide yourself than have the AI do it.
 
 </details>
 
