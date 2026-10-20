@@ -73,7 +73,6 @@ public class MainActivity extends Activity {
     private static final String PLAY_STORE = "com.android.vending";
     private static final String SETTINGS = "settings";
     private static final String ADD = "add";
-    private static final String WALLPAPER = "wallpaper";
     private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home", "Uninstall"};
     private static final String[] EDIT_ITEMS_SYSTEM = {"Move", "Replace", "Remove from home", "App info"};
     private static final int PER_ROW = 6, MAX_INPUTS = 4;
@@ -93,12 +92,9 @@ public class MainActivity extends Activity {
     private static final int ROW1_TOP = 604, ROW_STEP = 224;
     private static final int GRID_MIN_TOP = 400; // more rows push the grid up, but not into the clock
     private static final int ICON_TOP = 76, ICON_BUTTON = 72, ICON_SIZE = 40, ICON_GAP = 12; // level with the date
-    private static final int CLOCK_PAD = 24; // room for the clock's focus glass
 
-    // OK on the clock opens the home screen's own settings. Wallpaper is the only one so far (it has
-    // a tile in the bottom row too).
-    private static final String CLOCK = "clock";
-    private static final String[] CLOCK_ITEMS = {"Wallpaper"};
+    // The Settings tile opens a small menu: the home screen's own settings, then the TV's.
+    private static final String[] SETTINGS_ITEMS = {"Wallpaper", "TV settings"};
     // Wallpapers, saved by name: a gradient top to bottom, then a glow from the top left and one from
     // the bottom right. Each gets darker towards the bottom, so the white labels stay easy to read.
     // Only colours, no images, so every one costs the same as Dusk, the default.
@@ -118,7 +114,6 @@ public class MainActivity extends Activity {
     private static Typeface regular, semibold;
 
     private FrameLayout root; // the page, inside a vertical scroller
-    private View clockView;
     private int tileW, tileH, gridTop; // app grid geometry, set by buildTiles
     private final List<View> tiles = new ArrayList<>();
     private boolean dirty = true;
@@ -180,27 +175,8 @@ public class MainActivity extends Activity {
         clock.addView(date);
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-2, -2);
         tp.topMargin = px(-20); // pull the big digits up under the date
-        tp.bottomMargin = px(-30); // and the focus glass up under them
         clock.addView(time, tp);
-        // The clock takes focus like the icons: a glass box behind it, and OK opens the settings.
-        int cp = px(CLOCK_PAD);
-        clock.setPadding(cp, cp / 2, cp, 0);
-        final GradientDrawable glass = new GradientDrawable();
-        glass.setCornerRadius(px(RADIUS));
-        glass.setColor(Color.TRANSPARENT);
-        clock.setBackground(glass);
-        clock.setFocusable(true);
-        clock.setId(View.generateViewId());
-        clock.setTag(CLOCK);
-        clock.setContentDescription(Strings.t("Wallpaper"));
-        clock.setOnFocusChangeListener((v, has) -> {
-            if (has) focusedKey = CLOCK;
-            glass.setColor(has ? 0x26FFFFFF : Color.TRANSPARENT); // fainter than the icons': it's much bigger
-            v.animate().scaleX(has ? 1.04f : 1f).scaleY(has ? 1.04f : 1f).setDuration(140).withLayer().start();
-        });
-        clock.setOnClickListener(v -> dropdown(v, CLOCK_ITEMS, which -> showWallpapers()));
-        clockView = clock;
-        root.addView(clock, at(px(MARGIN) - cp, px(92) - cp / 2, -2, -2));
+        root.addView(clock, at(px(MARGIN), px(92), -2, -2));
 
         moveHint = text(px(24), 0xA8FFFFFF, regular);
         moveHint.setText(Strings.t("Use the arrows to move it, then press OK"));
@@ -433,18 +409,17 @@ public class MainActivity extends Activity {
             addTile(root, pkg, label, banner, null, icon, gridX(i), gridY(i), w, h);
         }
 
-        // Bottom row: Play Store, HDMI inputs, Settings, Wallpaper and Add app, six at most.
+        // Bottom row: Play Store, HDMI inputs, Settings and Add app, six at most.
         int col = 0;
         boolean store = !apps.contains(PLAY_STORE) && launchIntent(pm, PLAY_STORE) != null;
         List<TvInputInfo> inputs = hdmiInputs();
-        int room = PER_ROW - 3 - (store ? 1 : 0);
+        int room = PER_ROW - 2 - (store ? 1 : 0);
         if (inputs.size() > room) inputs = inputs.subList(0, room);
         if (store)
             addTile(root, PLAY_STORE, "Play Store", null, LineIcon.PLAY, null, m + col++ * (w + g), bottomTop, w, h);
         for (TvInputInfo in : inputs)
             addTile(root, in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, SETTINGS, Strings.t("Settings"), null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
-        addTile(root, WALLPAPER, Strings.t("Wallpaper"), null, LineIcon.WALLPAPER, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, ADD, Strings.t("Add app"), null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
 
         // Plain icons at the top right, level with the date: any settings shortcuts picked, then the
@@ -583,7 +558,6 @@ public class MainActivity extends Activity {
             v.animate().scaleX(has ? 1.1f : 1f).scaleY(has ? 1.1f : 1f).setDuration(140).withLayer().start();
         });
         card.setOnClickListener(v -> open(key));
-        card.setNextFocusUpId(clockView.getId()); // nothing is above the icons: Up goes to the clock
         FrameLayout wrap = new FrameLayout(this);
         wrap.setClipChildren(false);
         wrap.addView(card, new FrameLayout.LayoutParams(b, b));
@@ -597,11 +571,13 @@ public class MainActivity extends Activity {
         if (ADD.equals(key)) {
             showAddMenu(-1);
             return;
-        } else if (WALLPAPER.equals(key)) {
-            showWallpapers();
-            return;
         } else if (SETTINGS.equals(key)) {
-            i = new Intent(Settings.ACTION_SETTINGS);
+            dropdown(tile(SETTINGS), SETTINGS_ITEMS, which -> {
+                if (which == 0) showWallpapers();
+                else try { startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+                catch (Exception ignored) {}
+            });
+            return;
         } else if (isInput(key)) {
             openInput(key);
             return;
