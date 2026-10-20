@@ -94,7 +94,7 @@ Menus differ a bit by brand. If you're stuck, ask Claude or Codex: *"I have a \<
 <summary><b>Which TVs does it work on?</b></summary>
 <br>
 
-Android TV 9 (a real TV), 11 and 12, and Google TV 14. Every change is tested automatically on emulators.
+Android TV 9 (a real TV), 11 and 12, and Google TV 14 (also a real TCL TV, see [TCL notes](#tcl-notes)). Every change is tested automatically on emulators.
 
 </details>
 
@@ -135,7 +135,7 @@ It runs the same Google TV this is tested on, so it should work. People who've d
 <summary><b>Home opens Google TV's setup screen instead (Sony BRAVIA and others)</b></summary>
 <br>
 
-On some Google TVs, once Google TV's home screen (`com.google.android.apps.tv.launcherx`) is off, Android picks the setup app (`com.google.android.tungsten.setupwraith`) for Home instead. `install.sh` spots this and asks before turning the setup app off too. It only asks if Home opens exactly that app, Google TV's home screen is already off and the TV has finished its first setup. `YES=1` doesn't turn it off; use `YES_SETUP=1` for that. This worked on a Sony BRAVIA, but it hasn't been tested on every TV. `undo.sh` turns it back on.
+On some Google TVs, once Google TV's home screen (`com.google.android.apps.tv.launcherx`) is off, Android picks the setup app (`com.google.android.tungsten.setupwraith`) for Home instead. `install.sh` spots this and asks before turning the setup app off too. It only asks if Home opens exactly that app, Google TV's home screen is already off and the TV has finished its first setup. `YES=1` doesn't turn it off; use `YES_SETUP=1` for that. This worked on a Sony BRAVIA and a TCL Smart TV Pro (Google TV 14), but it hasn't been tested on every TV. `undo.sh` turns it back on.
 
 To undo it by hand:
 
@@ -145,6 +145,75 @@ adb shell pm enable com.google.android.apps.tv.launcherx
 ```
 
 If the TV ever asks to be set up again, or a setup screen won't finish, turn the setup app back on first.
+
+</details>
+
+<a id="tcl-notes"></a>
+<details>
+<summary><b>TCL TVs: what worked, and what to keep</b></summary>
+<br>
+
+Tested on a TCL Smart TV Pro (Google TV, Android 14, 2.3 GB of RAM). Every step below was followed by a restart, and the TV started normally each time. Free memory went from about 660 MB to about 1 GB, though part of that is just from restarting: the first number was taken after the TV had been on for 15 days.
+
+**Home screen.** With Google TV's home screen off, Home opened the setup app's recovery screen, as in [#16](https://github.com/Ansub/tv-detox/issues/16). Turning the setup app off too (`YES_SETUP=1`) made this home screen stick, through several restarts.
+
+**Connect on port 5555.** If you connected with **Wireless debugging** (pairing code), turning the setup app off ends that connection halfway through `install.sh`. The script then says it couldn't turn the setup app off, even though it did. On this TV, the classic port also worked, so you can reconnect with `adb connect <TV_IP>:5555`, check with `adb shell pm list packages -d`, and run `install.sh` again with that address.
+
+**Safe to turn off**, if you don't use them:
+
+| App | Package |
+|---|---|
+| TCL account | `com.tcl.usercenter` |
+| Built-in manual | `com.tcl.ocean.instructions` |
+| TCL Channel (free channels with ads) | `com.tcl.channelplus` |
+| TCL recommendations | `com.tcl.waterfall.overseas` |
+| TCL notifications and promos | `com.tcl.messagebox` |
+| Store demo | `com.tcl.esticker`, `com.tcl.exhibit` |
+| Alexa built-in | `com.tcl.smartalexa` |
+| Phone link | `com.tcl.magiconnectfree` |
+| Repair guide, logs | `com.tcl.repairguide`, `com.tcl.logkit` |
+| Screen mirroring | `com.tcl.miracast` |
+| TCL analytics and Alexa hooks | `com.tcl.ttvs` |
+| TCL interactive and ads service | `com.tcl.interactive` |
+| Game bar for consoles | `com.tcl.gamebar` |
+| Photo viewer, USB media player | `com.tcl.gallery`, `com.tcl.ui_mediaCenter` |
+| App manager | `com.tcl.guard` |
+| Bluetooth "listen alone" | `com.tcl.t_solo` |
+| Google TV's screensaver (about 200 MB) | `com.google.android.apps.tv.dreamx` |
+
+**Tiles that stay after the cleanup.** Two TCL tiles can still show up on this home screen. **TCL Channel** is `com.tcl.partnercustomizer`, which also handles the TCL button on the remote. **TCL Home** is `com.tcl.dashboard`, TCL's quick settings panel. Both turned off without trouble.
+
+**Keep these on:**
+
+- `com.tcl.tvinput`: the HDMI inputs and the tuner.
+- `com.tcl.suspension`: the input picker.
+- `com.tcl.inputmethod.international`: the TCL keyboard.
+- `com.tcl.providers.config`: other TCL apps read their settings from it.
+- `com.tcl.useragreement`: TCL's privacy switches.
+
+`com.tcl.tv` is Live TV, the channel guide and channel scanning. Turn it off only if you never watch antenna or cable TV.
+
+**Optional: the phone keyboard keeps popping up.** On this TV, Google TV's phone-remote service made its phone keyboard the TV's keyboard again after every restart. If that happens to you, first note which keyboard you have now:
+
+```sh
+adb shell settings get secure default_input_method
+```
+
+Then switch to the TCL keyboard and turn the phone-remote service off:
+
+```sh
+adb shell ime set com.tcl.inputmethod.international/.T_IME
+adb shell pm disable-user --user 0 com.google.android.tv.remote.service
+```
+
+This also stops your phone from working as a remote: no typing, voice search or control from the Google TV or Google Home app. `undo.sh` doesn't undo it. To undo it by hand, turn the service back on and switch back to the keyboard you noted:
+
+```sh
+adb shell pm enable com.google.android.tv.remote.service
+adb shell ime set <the keyboard you noted>
+```
+
+**The TCL logo at startup** is part of the TV's firmware, so it can't be turned off. On this TV, turning it off with the remote (not at the wall) let TCL's quick start wake it straight to the home screen, with no logo.
 
 </details>
 
