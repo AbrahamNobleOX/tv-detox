@@ -56,6 +56,14 @@ fi
 
 adb -s "$TV" exec-out screencap -p > "$SHOT"
 
+echo "== check.sh refuses a list it can't read"
+list=$(mktemp)
+echo "# nothing to check" > "$list"
+sh check.sh "$TV" "$list" 2>&1 | grep -q "Can't read" && fail "check.sh refused a list it can read"
+rm -f "$list"
+rc=0; sh check.sh "$TV" "$list" >/dev/null 2>&1 || rc=$?
+[ "$rc" = 2 ] || fail "check.sh exit $rc for a list it can't read, expected 2"
+
 echo "== undo puts the TV back"
 sh undo.sh "$TV" >/dev/null
 sleep 3
