@@ -145,6 +145,27 @@ public class MainActivity extends Activity {
     private long bootShownAt; // when Home was first created after boot; 0 once there's nothing to undo
     private boolean userActed;
 
+    // Parking: Live TV remembers the last input it showed and goes back to it on the next boot, which over
+    // CEC wakes a console on that port. With a park input set (an empty HDMI, --es park <input id>), coming
+    // back to Home after an HDMI tile switches Live TV to it for a moment, so boot lands somewhere harmless.
+    private static final long PARK_DELAY_MS = 2_500;
+    private boolean parkPending;
+
+    // A console behind an HDMI tile shows up over CEC as its own input, a child of the port. When the one
+    // opened from a tile goes to standby (rest mode), Home comes back, and parks as above. The TV only asks
+    // a CEC device for its power status about once a minute, so this can take that long.
+    private String watchedInput;
+    private final TvInputManager.TvInputCallback inputStates = new TvInputManager.TvInputCallback() {
+        @Override public void onInputStateChanged(String id, int state) {
+            if (watchedInput == null || state == TvInputManager.INPUT_STATE_CONNECTED) return;
+            TvInputManager tim = (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
+            TvInputInfo info = tim == null ? null : tim.getTvInputInfo(id);
+            if (info == null || !watchedInput.equals(info.getParentId())) return;
+            watchedInput = null;
+            comeBack(0);
+        }
+    };
+
     // Apps installed, removed or updated. This often lands once Home is already back in front (an app
     // uninstalled from the menu is gone only after Android's prompt has closed), so catch up then.
     private final BroadcastReceiver packagesChanged = new BroadcastReceiver() {
@@ -223,11 +244,17 @@ public class MainActivity extends Activity {
             if (android.os.Build.VERSION.SDK_INT >= 24) cm.registerDefaultNetworkCallback(networkChanged);
             else cm.registerNetworkCallback(new NetworkRequest.Builder().build(), networkChanged);
         } catch (Exception ignored) {}
+
+        TvInputManager tim = (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
+        if (tim != null) try { tim.registerCallback(inputStates, new android.os.Handler(getMainLooper())); }
+        catch (Exception ignored) {}
     }
 
     @Override
     protected void onDestroy() {
         unregisterReceiver(packagesChanged);
+        TvInputManager tim = (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
+        if (tim != null) try { tim.unregisterCallback(inputStates); } catch (Exception ignored) {}
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm != null) try { cm.unregisterNetworkCallback(networkChanged); } catch (Exception ignored) {}
         super.onDestroy();
@@ -247,7 +274,8 @@ public class MainActivity extends Activity {
     private boolean saveConfig(Intent intent) {
         String apps = intent == null ? null : intent.getStringExtra("apps");
         String quick = intent == null ? null : intent.getStringExtra("quick");
-        if (apps == null && quick == null) return false;
+        String park = intent == null ? null : intent.getStringExtra("park");
+        if (apps == null && quick == null && park == null) return false;
         SharedPreferences prefs = getSharedPreferences(PREFS, 0);
         String stamp = intent.getStringExtra("stamp");
         if (stamp != null && stamp.equals(prefs.getString("stamp", null))) return false;
@@ -262,6 +290,11 @@ public class MainActivity extends Activity {
             quick = quick.trim();
             if (quick.isEmpty() || quick.equalsIgnoreCase("none")) e.remove("quick");
             else e.putString("quick", quick);
+        }
+        if (park != null) {
+            park = park.trim();
+            if (park.isEmpty() || park.equalsIgnoreCase("none")) e.remove("park");
+            else e.putString("park", park);
         }
         e.apply();
         dirty = true;
@@ -300,6 +333,15 @@ public class MainActivity extends Activity {
         refreshNetwork();
         View f = getCurrentFocus();
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
+        watchedInput = null;
+        if (parkPending) {
+            parkPending = false;
+            String park = getSharedPreferences(PREFS, 0).getString("park", null);
+            if (park != null) {
+                openInput(park);
+                comeBack(PARK_DELAY_MS);
+            }
+        }
     }
 
     // Back from a menu or a window on top (like the uninstall prompt): catch up on apps that changed.
@@ -341,11 +383,15 @@ public class MainActivity extends Activity {
         long shown = bootShownAt;
         bootShownAt = 0;
         if (shown == 0 || userActed || SystemClock.elapsedRealtime() - shown > BOOT_TAKEOVER_MS) return;
+        comeBack(RECLAIM_DELAY_MS);
+    }
+
+    private void comeBack(long delayMs) {
         root.postDelayed(() -> {
             Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
                     .setPackage(getPackageName()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
             try { startActivity(home); } catch (Exception ignored) {}
-        }, RECLAIM_DELAY_MS);
+        }, delayMs);
     }
 
     // Static gradient, drawn once by the window: no extra view, no animation.
@@ -632,6 +678,8 @@ public class MainActivity extends Activity {
             return;
         } else if (isInput(key)) {
             openInput(key);
+            parkPending = !key.equals(getSharedPreferences(PREFS, 0).getString("park", null));
+            watchedInput = parkPending ? key : null;
             return;
         } else if (NETWORK.equals(key)) {
             openNetworkSettings();
