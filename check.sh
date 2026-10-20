@@ -35,6 +35,7 @@ check() { # name, test command, fix command
 is_off() { sh_tv pm list packages -d "$1" | grep -qx "package:$1"; }
 installed() { sh_tv pm list packages "$1" | grep -qx "package:$1"; }
 
+# shellcheck disable=SC2034 # ME is read inside the eval'd check strings below
 ME=com.ansub.tvhome/.MainActivity
 home() { sh_tv cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tail -1; }
 echo "Home screen"
