@@ -960,8 +960,9 @@ public class MainActivity extends Activity {
     }
 
     // Philips stores a name as "name&DEVICE_TYPE" (like "Computer&COMPUTER"), so show the name only.
-    // Short endings stay, so names like "AT&T" or "B&O" on other TVs are left alone.
+    // Only on Philips TVs: elsewhere a name like "AUDIO&VIDEO" is the name itself.
     private static String withoutDeviceType(String label) {
+        if (!"Philips".equalsIgnoreCase(android.os.Build.MANUFACTURER)) return label;
         int amp = label.lastIndexOf('&');
         return amp > 0 && label.substring(amp + 1).matches("[A-Z][A-Z0-9_]{2,}") ? label.substring(0, amp).trim() : label;
     }
