@@ -62,7 +62,7 @@ com.tcl.inputmethod.international com.android.providers.userdictionary
 com.google.android.tungsten.setupwraith com.google.android.onetimeinitializer
 com.google.android.partnersetup com.android.provision com.android.tv.provision com.android.managedprovisioning
 com.tcl.suspension com.tcl.tvinput com.tcl.providers.config com.tcl.useragreement
-com.tcl.settings com.tcl.tcl_bt_rcu_service"
+com.tcl.settings com.tcl.tcl_bt_rcu_service com.google.android.apps.tv.launcherx"
 
 # Turn off only if you don't use the feature they carry.
 KEEP="com.google.android.apps.mediashell com.google.android.katniss

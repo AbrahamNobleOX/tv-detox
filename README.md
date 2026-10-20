@@ -31,6 +31,9 @@ Claude Code or Codex does the work. You just press OK on the remote.
 
 ## Get started
 
+> [!WARNING]
+> **Google TV and Chromecast with Google TV:** don't turn off the TV's own home screen. On some of these devices that left them stuck restarting, and the only fix was a factory reset. Since v1.4.1, `install.sh` leaves it on for Google TV unless you opt in with `GOOGLE_TV=1`. The cleanup still works and makes the TV faster. You just keep Google TV's own home screen.
+
 **1. Turn on developer mode on the TV.**
 Settings → Device Preferences → About → press **Build** 7 times. Then turn on **USB debugging** in **Developer options**. [Stuck?](#help)
 
@@ -55,10 +58,10 @@ My TV is a <brand and model>.
    (com.google.android.gms), Google Play, Settings,
    System UI, setup apps, the keyboard, Bluetooth, my HDMI
    inputs, the TV's input and tuner framework, or anything
-   else the TV needs to start. If you're not sure, leave
-   it on. The one exception: if install.sh offers to turn
-   off Google TV's setup app because it's taking over Home,
-   ask me first.
+   else the TV needs to start. On Google TV or Chromecast,
+   also never turn off Google TV's home screen
+   (com.google.android.apps.tv.launcherx). If you're not
+   sure, leave it on.
 5. Install the home screen: download
    https://github.com/Ansub/tv-detox and run its
    install.sh with my TV and these apps: <your apps>.
@@ -85,6 +88,15 @@ That's it. It asks you before every change.
 2. Press OK on **Build** 7 times until you see "You are now a developer."
 3. Go back, open **Developer options** and turn on **USB debugging**. If you see **Network debugging** or **Wireless debugging**, turn that on too.
 4. The first time your laptop connects, the TV asks "Allow debugging?" Tick "Always allow" and press **Allow**.
+
+**Chromecast with Google TV and other newer Google TVs** usually only have **Wireless debugging**, which needs a pairing code. `install.sh <TV_IP>` alone won't connect. Instead:
+
+1. In **Developer options**, open **Wireless debugging** and choose **Pair device with pairing code**. Leave that screen open.
+2. On your laptop, run `adb pair <IP>:<pairing port>` with the IP and port shown under the code, and type the code.
+3. Back on the **Wireless debugging** screen, note the IP and port shown there (it's a different port), and run `adb connect <IP>:<port>`.
+4. Use that same address for every script: `sh install.sh <IP>:<port>`, `sh undo.sh <IP>:<port>`.
+
+The port changes every time the TV restarts, and the connection can drop. If a script says it can't reach the TV, pair and connect again. Don't restart the TV halfway through a cleanup.
 
 Menus differ a bit by brand. If you're stuck, ask Claude or Codex: *"I have a \<brand and model\> TV. How can you connect to it from my laptop and take control of it?"*
 
@@ -124,10 +136,10 @@ If your TV or streaming box runs Android TV or Google TV, it should work. That i
 <summary><b>Anything to watch out for on Chromecast with Google TV?</b></summary>
 <br>
 
-It runs the same Google TV this is tested on, so it should work. People who've done it report two things:
+The cleanup works, but **leave Google TV's own home screen on**, which means you keep Google TV's home screen. At least one Chromecast got stuck restarting after it was turned off, and it needed a factory reset. `install.sh` leaves it on by default since v1.4.1.
 
+- Connect with Wireless debugging (see "How do I turn on developer mode?" above). The plain `install.sh <TV_IP>` won't reach a Chromecast.
 - The YouTube button on the remote can stop working, and some lose casting. Tell Claude to keep casting on if you use it.
-- Google TV can bring its own home screen back. If that happens, ask Claude to turn off Google TV's home screen. Leave its setup app on unless it's taking over Home (see below).
 
 </details>
 
@@ -135,7 +147,7 @@ It runs the same Google TV this is tested on, so it should work. People who've d
 <summary><b>Home opens Google TV's setup screen instead (Sony BRAVIA and others)</b></summary>
 <br>
 
-On some Google TVs, once Google TV's home screen (`com.google.android.apps.tv.launcherx`) is off, Android picks the setup app (`com.google.android.tungsten.setupwraith`) for Home instead. `install.sh` spots this and asks before turning the setup app off too. It only asks if Home opens exactly that app, Google TV's home screen is already off and the TV has finished its first setup. `YES=1` doesn't turn it off; use `YES_SETUP=1` for that. This worked on a Sony BRAVIA and a TCL Smart TV Pro (Google TV 14), but it hasn't been tested on every TV. `undo.sh` turns it back on.
+On some Google TVs, once Google TV's home screen (`com.google.android.apps.tv.launcherx`) is off, Android picks the setup app (`com.google.android.tungsten.setupwraith`) for Home instead. `install.sh` spots this and asks before turning the setup app off too. It only asks if Home opens exactly that app, Google TV's home screen is already off and the TV has finished its first setup. Since v1.4.1 this only happens if you also opt in with `GOOGLE_TV=1`. `YES=1` doesn't turn it off; use `YES_SETUP=1` for that. This worked on a Sony BRAVIA and a TCL Smart TV Pro (Google TV 14), but it hasn't been tested on every TV. `undo.sh` turns it back on.
 
 To undo it by hand:
 
