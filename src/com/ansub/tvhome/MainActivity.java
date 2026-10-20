@@ -154,15 +154,32 @@ public class MainActivity extends Activity {
     // A console behind an HDMI tile shows up over CEC as its own input, a child of the port. When the one
     // opened from a tile goes to standby (rest mode), Home comes back, and parks as above. The TV only asks
     // a CEC device for its power status about once a minute, so this can take that long.
-    private String watchedInput;
+    // A console woken from its own controller switches the TV to itself (CEC One Touch Play), with no tile
+    // involved; once it shows up as on while Home is covered, it's watched and parked the same way.
+    // The TV can mark the console on a moment before it covers Home, so a console that comes on while Home
+    // is in front counts if Home is covered within TAKEOVER_MS; one waking in the background doesn't.
+    private static final long TAKEOVER_MS = 10_000;
+    private String watchedInput, wokenInput;
+    private long wokenAt;
+    private boolean inFront;
     private final TvInputManager.TvInputCallback inputStates = new TvInputManager.TvInputCallback() {
         @Override public void onInputStateChanged(String id, int state) {
-            if (watchedInput == null || state == TvInputManager.INPUT_STATE_CONNECTED) return;
             TvInputManager tim = (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
             TvInputInfo info = tim == null ? null : tim.getTvInputInfo(id);
-            if (info == null || !watchedInput.equals(info.getParentId())) return;
-            watchedInput = null;
-            comeBack(0);
+            String port = info == null ? null : info.getParentId();
+            if (port == null) return;
+            if (state == TvInputManager.INPUT_STATE_CONNECTED) {
+                String park = getSharedPreferences(PREFS, 0).getString("park", null);
+                if (park == null || port.equals(park)) return;
+                if (!inFront) watch(port);
+                else {
+                    wokenInput = port;
+                    wokenAt = SystemClock.elapsedRealtime();
+                }
+            } else if (port.equals(watchedInput)) {
+                watchedInput = null;
+                comeBack(0);
+            }
         }
     };
 
@@ -333,6 +350,7 @@ public class MainActivity extends Activity {
         refreshNetwork();
         View f = getCurrentFocus();
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
+        inFront = true;
         watchedInput = null;
         if (parkPending) {
             parkPending = false;
@@ -374,6 +392,19 @@ public class MainActivity extends Activity {
     public boolean dispatchKeyEvent(KeyEvent e) {
         userActed = true;
         return super.dispatchKeyEvent(e);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        inFront = false;
+        if (wokenInput != null && SystemClock.elapsedRealtime() - wokenAt < TAKEOVER_MS) watch(wokenInput);
+        wokenInput = null;
+    }
+
+    private void watch(String port) {
+        watchedInput = port;
+        parkPending = true;
     }
 
     // Covered right after boot by something nobody asked for (Live TV, see BOOT_WINDOW_MS): come back.
