@@ -94,8 +94,8 @@ public class MainActivity extends Activity {
     private static final int GRID_MIN_TOP = 400; // more rows push the grid up, but not into the clock
     private static final int ICON_TOP = 76, ICON_BUTTON = 72, ICON_SIZE = 40, ICON_GAP = 12; // level with the date
 
-    // The Settings tile opens a small menu: the home screen's own settings, then the TV's.
-    private static final String[] SETTINGS_ITEMS = {"Wallpaper", "TV settings"};
+    // Settings opens the TV's settings; Wallpaper, next to it, the home screen's own.
+    private static final String WALLPAPER = "wallpaper";
     // Wallpapers, saved by name: a gradient top to bottom, then a glow from the top left and one from
     // the bottom right. Dark ones first, then bright ones that get darker towards the bottom, so the
     // white labels stay easy to read. Only colours, no images, so every one costs the same as Dusk,
@@ -142,6 +142,7 @@ public class MainActivity extends Activity {
     // here, come back to the front, once. Anything opened from the remote is left alone.
     private static final long BOOT_WINDOW_MS = 180_000, BOOT_TAKEOVER_MS = 30_000, RECLAIM_DELAY_MS = 1_500;
     private static boolean bootChecked;
+    static boolean keyPressed; // any key on Home since this process started; read by BootReceiver
     private long bootShownAt; // when Home was first created after boot; 0 once there's nothing to undo
     private boolean userActed;
 
@@ -163,6 +164,11 @@ public class MainActivity extends Activity {
     private long wokenAt;
     private boolean inFront;
     private final TvInputManager.TvInputCallback inputStates = new TvInputManager.TvInputCallback() {
+        // Opened early in boot, Home can be built before the TV has added its HDMI inputs: catch up.
+        @Override public void onInputAdded(String id) { inputsChanged(); }
+        @Override public void onInputRemoved(String id) { inputsChanged(); }
+        @Override public void onInputUpdated(String id) { inputsChanged(); }
+
         @Override public void onInputStateChanged(String id, int state) {
             TvInputManager tim = (TvInputManager) getSystemService(Context.TV_INPUT_SERVICE);
             TvInputInfo info = tim == null ? null : tim.getTvInputInfo(id);
@@ -391,6 +397,7 @@ public class MainActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(KeyEvent e) {
         userActed = true;
+        keyPressed = true;
         return super.dispatchKeyEvent(e);
     }
 
@@ -400,6 +407,21 @@ public class MainActivity extends Activity {
         inFront = false;
         if (wokenInput != null && SystemClock.elapsedRealtime() - wokenAt < TAKEOVER_MS) watch(wokenInput);
         wokenInput = null;
+    }
+
+    // Rebuilds only when the HDMI tiles would change: the TV adds and updates many inputs while it boots.
+    private String shownInputs = "";
+
+    private void inputsChanged() {
+        if (inputIds(hdmiInputs()).equals(shownInputs)) return;
+        dirty = true;
+        refreshApps();
+    }
+
+    private static String inputIds(List<TvInputInfo> inputs) {
+        StringBuilder b = new StringBuilder();
+        for (TvInputInfo in : inputs) b.append(in.getId()).append(' ');
+        return b.toString();
     }
 
     private void watch(String port) {
@@ -532,17 +554,19 @@ public class MainActivity extends Activity {
             addTile(root, pkg, label, banner, null, icon, gridX(i), gridY(i), w, h);
         }
 
-        // Bottom row: Play Store, HDMI inputs, Settings and Add app, six at most.
+        // Bottom row: Play Store, HDMI inputs, Settings, Wallpaper and Add app, six at most.
         int col = 0;
         boolean store = !apps.contains(PLAY_STORE) && launchIntent(pm, PLAY_STORE) != null;
         List<TvInputInfo> inputs = hdmiInputs();
-        int room = PER_ROW - 2 - (store ? 1 : 0);
+        shownInputs = inputIds(inputs);
+        int room = PER_ROW - 3 - (store ? 1 : 0);
         if (inputs.size() > room) inputs = inputs.subList(0, room);
         if (store)
             addTile(root, PLAY_STORE, "Play Store", null, LineIcon.PLAY, null, m + col++ * (w + g), bottomTop, w, h);
         for (TvInputInfo in : inputs)
             addTile(root, in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, SETTINGS, Strings.t("Settings"), null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
+        addTile(root, WALLPAPER, Strings.t("Wallpaper"), null, LineIcon.WALLPAPER, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, ADD, Strings.t("Add app"), null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
 
         // Plain icons at the top right, level with the date: any settings shortcuts picked, then the
@@ -701,11 +725,11 @@ public class MainActivity extends Activity {
             showAddMenu(-1);
             return;
         } else if (SETTINGS.equals(key)) {
-            dropdown(tile(SETTINGS), SETTINGS_ITEMS, which -> {
-                if (which == 0) showWallpapers();
-                else try { startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
-                catch (Exception ignored) {}
-            });
+            try { startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+            catch (Exception ignored) {}
+            return;
+        } else if (WALLPAPER.equals(key)) {
+            showWallpapers();
             return;
         } else if (isInput(key)) {
             openInput(key);
