@@ -10,7 +10,6 @@
 #   global window_animation_scale 0            a setting (global, secure or system)
 #   device_config activity_manager max_cached_processes 4
 set -e
-cd "$(dirname "$0")"
 
 TARGET="$1"; FIX=; LIST=
 shift 2>/dev/null || true
