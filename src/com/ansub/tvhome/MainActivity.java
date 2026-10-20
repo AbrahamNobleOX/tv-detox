@@ -29,6 +29,7 @@ import android.net.NetworkRequest;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -135,6 +136,15 @@ public class MainActivity extends Activity {
     // key-up to the tile still focused here, so a key-up only opens the app it went down on (#30).
     private String okDownKey;
 
+    // Some TVs (MediaTek with Freeview Play, like Sharp) start Live TV on every boot, a second after Home,
+    // and it resumes the last input: often an empty HDMI, or one that wakes a console over CEC. So when
+    // Home is first shown right after boot and is covered within BOOT_TAKEOVER_MS without a key pressed
+    // here, come back to the front, once. Anything opened from the remote is left alone.
+    private static final long BOOT_WINDOW_MS = 180_000, BOOT_TAKEOVER_MS = 30_000, RECLAIM_DELAY_MS = 1_500;
+    private static boolean bootChecked;
+    private long bootShownAt; // when Home was first created after boot; 0 once there's nothing to undo
+    private boolean userActed;
+
     // Apps installed, removed or updated. This often lands once Home is already back in front (an app
     // uninstalled from the menu is gone only after Android's prompt has closed), so catch up then.
     private final BroadcastReceiver packagesChanged = new BroadcastReceiver() {
@@ -160,6 +170,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        if (!bootChecked) {
+            bootChecked = true;
+            if (SystemClock.elapsedRealtime() < BOOT_WINDOW_MS) bootShownAt = SystemClock.elapsedRealtime();
+        }
         saveConfig(getIntent());
         loadFonts();
         scale = getResources().getDisplayMetrics().widthPixels / 1920f;
@@ -313,6 +327,26 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() { /* home screen: nothing to go back to */ }
+
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        userActed = true;
+        return super.dispatchKeyEvent(e);
+    }
+
+    // Covered right after boot by something nobody asked for (Live TV, see BOOT_WINDOW_MS): come back.
+    @Override
+    protected void onStop() {
+        super.onStop();
+        long shown = bootShownAt;
+        bootShownAt = 0;
+        if (shown == 0 || userActed || SystemClock.elapsedRealtime() - shown > BOOT_TAKEOVER_MS) return;
+        root.postDelayed(() -> {
+            Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                    .setPackage(getPackageName()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            try { startActivity(home); } catch (Exception ignored) {}
+        }, RECLAIM_DELAY_MS);
+    }
 
     // Static gradient, drawn once by the window: no extra view, no animation.
     private Drawable background(int[] c) {
