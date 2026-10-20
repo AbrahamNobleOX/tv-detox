@@ -92,6 +92,7 @@ public class MainActivity extends Activity {
     private static final int MARGIN = 96, GAP = 36, RADIUS = 22;
     private static final int ROW1_TOP = 604, ROW_STEP = 224;
     private static final int GRID_MIN_TOP = 400; // more rows push the grid up, but not into the clock
+    private static final int INPUTS_MIN_TOP = 360; // nor the HDMI row above them
     private static final int ICON_TOP = 76, ICON_BUTTON = 72, ICON_SIZE = 40, ICON_GAP = 12; // level with the date
 
     // Settings opens the TV's settings; Wallpaper, next to it, the home screen's own.
@@ -585,7 +586,12 @@ public class MainActivity extends Activity {
         int launchable = 0;
         for (String pkg : apps) if (launchIntent(pm, pkg) != null) launchable++;
         int rows = Math.max(1, (launchable + PER_ROW - 1) / PER_ROW);
-        gridTop = Math.max(px(GRID_MIN_TOP), px(ROW1_TOP) - (rows - 1) * px(ROW_STEP));
+        // HDMI inputs get their own row just above the apps, so the grid never starts so high that it
+        // pushes that row into the clock.
+        List<TvInputInfo> inputs = hdmiInputs();
+        shownInputs = inputIds(inputs);
+        int inputsMin = inputs.isEmpty() ? 0 : px(INPUTS_MIN_TOP + ROW_STEP);
+        gridTop = Math.max(Math.max(px(GRID_MIN_TOP), inputsMin), px(ROW1_TOP) - (rows - 1) * px(ROW_STEP));
         int bottomTop = gridTop + rows * px(ROW_STEP);
         ((FrameLayout.LayoutParams) moveHint.getLayoutParams()).topMargin = gridTop - px(64);
         root.setMinimumHeight(bottomTop + h + px(MARGIN));
@@ -608,17 +614,18 @@ public class MainActivity extends Activity {
             addTile(root, pkg, label, banner, null, icon, gridX(i), gridY(i), w, h);
         }
 
-        // Bottom row: Play Store, HDMI inputs, Settings, Wallpaper and Add app, six at most.
-        int col = 0;
+        // Above the apps, against the right edge: the HDMI inputs.
+        int inputsTop = gridTop - px(ROW_STEP);
+        int col = PER_ROW - inputs.size();
+        for (TvInputInfo in : inputs)
+            addTile(root, in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), inputsTop, w, h);
+
+        // Bottom row, against the right edge: Play Store (unless it's with the apps), Settings, Wallpaper
+        // and Add app.
         boolean store = !apps.contains(PLAY_STORE) && launchIntent(pm, PLAY_STORE) != null;
-        List<TvInputInfo> inputs = hdmiInputs();
-        shownInputs = inputIds(inputs);
-        int room = PER_ROW - 3 - (store ? 1 : 0);
-        if (inputs.size() > room) inputs = inputs.subList(0, room);
+        col = PER_ROW - 3 - (store ? 1 : 0);
         if (store)
             addTile(root, PLAY_STORE, "Play Store", null, LineIcon.PLAY, null, m + col++ * (w + g), bottomTop, w, h);
-        for (TvInputInfo in : inputs)
-            addTile(root, in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, SETTINGS, Strings.t("Settings"), null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, WALLPAPER, Strings.t("Wallpaper"), null, LineIcon.WALLPAPER, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, ADD, Strings.t("Add app"), null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
