@@ -10,7 +10,7 @@ changes nothing:
 | verdict | meaning |
 | --- | --- |
 | `never` | the TV needs it, or Android keeps it running whatever you do. Leave it on. |
-| `keep` | it carries a feature you may use, casting or search or a keyboard. Off only if unused. |
+| `keep` | it carries a feature you may use, casting or search or Live TV. Off only if unused. |
 | `safe` | commonly preinstalled junk: ads, sponsored rows, unused vendor and Google apps. |
 | `review` | nothing known about it. Leave it on unless you know what it is. |
 
@@ -53,8 +53,8 @@ com.google.android.apps.mediashell` and reboot. On a TV that never casts, it is 
 
 ## A package name is not always the app
 
-A good app can ship under a generic name. SmartTube, for example, installs as
-`com.teamsmart.videomanager.tv` — nothing about that name says YouTube. Before turning
+A package name doesn't always say what the app is. Prime Video, for example, installs as
+`com.amazon.amazonvideo.livingroom`, and Netflix as `com.netflix.ninja`. Before turning
 something off, look at what is actually inside:
 
 ```
@@ -76,7 +76,9 @@ boot.
 ## If something goes wrong
 
 - Bring one app back: `adb shell pm enable <package>`
-- Bring back everything TV Detox turned off: `sh undo.sh <TV_IP>`
+- Bring back the launchers `install.sh` turned off: `sh undo.sh <TV_IP>`. It only knows about
+  what `install.sh` turned off. Apps you turn off by hand from this guide aren't on its list,
+  so write each one down as you go, and turn them back on with `pm enable`.
 - Screen is black but the TV answers ADB: re-enable `com.google.android.tvlauncher`, boot to
   it, and run `undo.sh`.
 
@@ -100,7 +102,9 @@ package to disable. Set it on the remote instead.
 | `com.android.bluetooth` | Bluetooth and the remote |
 | `com.android.packageinstaller`, `com.google.android.packageinstaller` | installing apps |
 | `com.dolby.android.audio.service` | audio processing, no sound without it on some TVs |
-| the keyboard in use | e.g. `com.tcl.inputmethod.international` |
+| keyboards | `com.google.android.inputmethod.latin` (Gboard), `com.android.inputmethod.latin`, `com.tcl.inputmethod.international` |
+| setup apps | `com.google.android.tungsten.setupwraith`, `com.google.android.partnersetup`, `com.google.android.onetimeinitializer` |
+| TCL basics | `com.tcl.tvinput` (HDMI and tuner), `com.tcl.suspension` (input picker), `com.tcl.providers.config`, `com.tcl.useragreement` |
 | `com.google.android.apps.mediashell` | casting, if you cast |
 | anything flagged `PERSISTENT` | it will not stay off |
 
@@ -115,9 +119,9 @@ Ads and sponsored rows, unused Google apps, vendor filler and serial port relics
 | `com.google.android.videos`, `com.google.android.youtube.tvmusic`, `com.google.android.play.games` | Google apps few TVs use |
 | `com.google.android.feedback` | Google feedback |
 | `com.tcl.waterfall.overseas`, `com.tcl.esticker` | TCL content feed and stickers |
-| `com.tcl.suspension`, `com.tcl.dashboard`, `com.tcl.messagebox` | TCL panels and popups |
+| `com.tcl.dashboard`, `com.tcl.messagebox` | TCL panels and popups |
 | `com.tcl.copydatatotv`, `com.tcl.audioplayer`, `com.tcl.imageplayer`, `com.tcl.videoplayer` | TCL media helpers |
-| `com.tcl.useragreement`, `com.tcl.usercenter`, `com.tcl.keyhelp` | TCL agreements and help |
+| `com.tcl.usercenter`, `com.tcl.keyhelp` | TCL account and help |
 | `com.android.printspooler`, `com.android.dreams.basic`, `com.android.htmlviewer` | Android spare parts |
 
 ### Depends on you
@@ -132,7 +136,7 @@ Turn these off only if you do not use the feature:
 | `com.google.android.marvin.talkback` | TalkBack screen reader |
 | `com.google.android.tv.remote.service` | remote control from your phone |
 | `com.google.android.tts` | text to speech |
-| `com.google.android.inputmethod.latin` | Gboard keyboard |
+| `com.tcl.tv` | Live TV, antenna and cable channels |
 
 Vendors rename and add to these lists, so treat them as strong hints, not gospel. When in
 doubt, leave it on: a slow TV is better than a TV you cannot use.

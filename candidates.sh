@@ -8,7 +8,7 @@
 #   VERDICT  STATE  PACKAGE                            WHAT IT IS
 #
 #   never    the TV needs it, or Android keeps it running whatever you do. Leave it on.
-#   keep     it carries a feature (casting, search, keyboard). Turn it off only if you don't use it.
+#   keep     it carries a feature (casting, search, Live TV). Turn it off only if you don't use it.
 #   safe     commonly preinstalled junk: ads, sponsored rows, unused vendor and Google apps.
 #   review   nothing known about it. If you're not sure, leave it on.
 #
@@ -38,7 +38,9 @@ case "$TV" in *:*) adb connect "$TV" >/dev/null 2>&1 || true ;; esac
 [ "$(adb -s "$TV" get-state 2>/dev/null)" = device ] || {
   echo "Can't reach $TV. Is the TV on, on this network, with debugging allowed?" >&2; exit 1; }
 
-sh_tv() { adb -s "$TV" shell "$@" </dev/null 2>/dev/null | tr -d '\r'; }
+sh_tv() { _rc=0; _out=$(adb -s "$TV" shell "$@" </dev/null 2>/dev/null) || _rc=$?; printf '%s\n' "$_out" | tr -d '\r'; return $_rc; }
+# If the TV drops off halfway, stop: a half-read list would give wrong verdicts.
+lost() { echo "Lost the connection to $TV while reading the app list. Nothing was changed. Run it again." >&2; exit 1; }
 
 # The TV needs these to start, or to keep working once it has.
 NEVER="com.google.android.gms com.google.android.gsf com.android.vending
@@ -54,30 +56,39 @@ com.android.certinstaller com.android.companiondevicemanager com.android.dynsyst
 com.android.statementservice com.android.vpndialogs com.android.wallpaperbackup
 com.android.backupconfirm com.android.sharedstoragebackup com.android.localtransport
 com.android.proxyhandler com.android.pacprocessor com.android.captiveportallogin
-com.dolby.android.audio.service"
+com.dolby.android.audio.service
+com.google.android.inputmethod.latin com.android.inputmethod.latin com.google.android.leanback.ime
+com.tcl.inputmethod.international com.android.providers.userdictionary
+com.google.android.tungsten.setupwraith com.google.android.onetimeinitializer
+com.google.android.partnersetup com.android.provision com.android.tv.provision com.android.managedprovisioning
+com.tcl.suspension com.tcl.tvinput com.tcl.providers.config com.tcl.useragreement
+com.tcl.settings com.tcl.tcl_bt_rcu_service"
 
 # Turn off only if you don't use the feature they carry.
 KEEP="com.google.android.apps.mediashell com.google.android.katniss
 com.google.android.tv.assistant com.google.android.marvin.talkback
-com.google.android.tv.remote.service com.google.android.inputmethod.latin
-com.android.inputmethod.latin com.google.android.tts
+com.google.android.tv.remote.service com.google.android.tts
 com.google.android.syncadapters.contacts com.google.android.syncadapters.calendar
-com.tcl.inputmethod.international com.ansub.tvhome
-com.google.android.webview com.tcl.android.webview"
+com.ansub.tvhome com.google.android.webview com.tcl.android.webview
+com.tcl.tv com.tcl.micmanager"
 
 # Commonly preinstalled junk: ads, sponsored rows, unused vendor and Google apps.
 SAFE="com.google.android.tvrecommendations com.google.android.backdrop
 com.google.android.videos com.google.android.youtube.tvmusic com.google.android.play.games
-com.google.android.feedback com.google.android.onetimeinitializer com.google.android.partnersetup
+com.google.android.feedback
 com.android.printspooler com.android.dreams.basic com.android.htmlviewer com.android.soundpicker
-com.tcl.waterfall.overseas com.tcl.esticker com.tcl.partnercustomizer com.tcl.suspension
+com.tcl.waterfall.overseas com.tcl.esticker com.tcl.partnercustomizer
 com.tcl.messagebox com.tcl.smartalexa com.tcl.copydatatotv com.tcl.audioplayer
-com.tcl.imageplayer com.tcl.keyhelp com.tcl.useragreement com.tcl.usercenter
+com.tcl.imageplayer com.tcl.keyhelp com.tcl.usercenter
 com.tcl.dashboard com.tcl.ttvs com.tcl.micmanager com.tcl.factory.view"
 
-dump=$(sh_tv dumpsys package)
-all=$(sh_tv pm list packages | sed 's/^package://')
-off=$(sh_tv pm list packages -d | sed 's/^package://')
+dump=$(sh_tv dumpsys package) || lost
+all=$(sh_tv pm list packages) || lost
+off=$(sh_tv pm list packages -d) || lost
+printf '%s\n' "$dump" | grep -q 'Package \[' || lost
+printf '%s\n' "$all" | grep -q '^package:' || lost
+all=$(printf '%s\n' "$all" | sed -n 's/^package://p')
+off=$(printf '%s\n' "$off" | sed -n 's/^package://p')
 
 tmp=$(mktemp -d 2>/dev/null || mktemp -d -t tvcand)
 trap 'rm -rf "$tmp"' EXIT
@@ -127,7 +138,7 @@ com.amazon.amazonvideo.livingroom	Prime Video
 com.tcl.waterfall.overseas	TCL content and ads feed
 com.tcl.esticker	TCL e-sticker
 com.tcl.partnercustomizer	TCL launcher customizer
-com.tcl.suspension	TCL quick panel
+com.tcl.suspension	TCL input picker
 com.tcl.messagebox	TCL message box
 com.tcl.smartalexa	TCL Alexa
 com.tcl.copydatatotv	TCL phone migration
@@ -138,7 +149,7 @@ com.tcl.keyhelp	TCL key help
 com.tcl.useragreement	TCL user agreement
 com.tcl.usercenter	TCL user centre
 com.tcl.dashboard	TCL dashboard
-com.tcl.ttvs	TCL system update
+com.tcl.ttvs	TCL analytics and Alexa hooks
 com.tcl.providers.config	TCL settings store
 com.tcl.settings	TCL settings
 com.tcl.tvinput	TV input framework
@@ -157,6 +168,8 @@ com.google.android.apps.nbu.smartconnect.tv	Google TV phone pairing
 com.android.providers.userdictionary	Keyboard dictionary
 EOF
 
+# One line each: the awk that ships with macOS won't take a newline inside -v.
+NEVER=$(printf '%s' "$NEVER" | tr '\n' ' '); KEEP=$(printf '%s' "$KEEP" | tr '\n' ' '); SAFE=$(printf '%s' "$SAFE" | tr '\n' ' ')
 awk -F'\t' -v never="$NEVER" -v keep="$KEEP" -v safe="$SAFE" -v tmp="$tmp" '
   BEGIN {
     n=split(never,x," "); for (i=1;i<=n;i++) if (x[i]!="") NV[x[i]]=1
@@ -185,6 +198,7 @@ awk -F'\t' -v never="$NEVER" -v keep="$KEEP" -v safe="$SAFE" -v tmp="$tmp" '
   }
 ' | sort -k1,1n -k4,4 | cut -f2-
 
+[ -s "$tmp/summary" ] || { echo "Couldn't sort the app list. Nothing was changed." >&2; exit 1; }
 n() { awk -v k="$1" 'NR==1{print $k}' "$tmp/summary" 2>/dev/null; }
 echo
 echo "never $(n 2) | keep $(n 3) | safe $(n 4) | review $(awk 'NR==2{print $1}' "$tmp/summary" 2>/dev/null)"
