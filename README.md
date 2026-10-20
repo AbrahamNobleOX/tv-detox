@@ -153,11 +153,11 @@ If the TV ever asks to be set up again, or a setup screen won't finish, turn the
 <summary><b>TCL TVs: what worked, and what to keep</b></summary>
 <br>
 
-Tested on a TCL Smart TV Pro (Google TV, Android 14, 2.3 GB of RAM). Every step below was followed by a restart, and the TV started normally each time. Free memory went from about 660 MB to about 1 GB.
+Tested on a TCL Smart TV Pro (Google TV, Android 14, 2.3 GB of RAM). Every step below was followed by a restart, and the TV started normally each time. Free memory went from about 660 MB to about 1 GB, though part of that is just from restarting: the first number was taken after the TV had been on for 15 days.
 
 **Home screen.** With Google TV's home screen off, Home opened the setup app's recovery screen, as in [#16](https://github.com/Ansub/tv-detox/issues/16). Turning the setup app off too (`YES_SETUP=1`) made this home screen stick, through several restarts.
 
-**Connect on port 5555.** If you connected with **Wireless debugging** (pairing code), turning the setup app off ends that connection halfway through `install.sh`. The script then says it couldn't turn the setup app off, even though it did. TCL also listens on the classic port, so reconnect with `adb connect <TV_IP>:5555`, check with `adb shell pm list packages -d`, and run `install.sh` again with that address.
+**Connect on port 5555.** If you connected with **Wireless debugging** (pairing code), turning the setup app off ends that connection halfway through `install.sh`. The script then says it couldn't turn the setup app off, even though it did. On this TV, the classic port also worked, so you can reconnect with `adb connect <TV_IP>:5555`, check with `adb shell pm list packages -d`, and run `install.sh` again with that address.
 
 **Safe to turn off**, if you don't use them:
 
@@ -193,16 +193,27 @@ Tested on a TCL Smart TV Pro (Google TV, Android 14, 2.3 GB of RAM). Every step 
 
 `com.tcl.tv` is Live TV, the channel guide and channel scanning. Turn it off only if you never watch antenna or cable TV.
 
-**The phone keyboard keeps popping up.** Google TV's remote service sets its phone keyboard bridge as the TV's keyboard on every restart. To use the TCL keyboard instead:
+**Optional: the phone keyboard keeps popping up.** On this TV, Google TV's phone-remote service made its phone keyboard the TV's keyboard again after every restart. If that happens to you, first note which keyboard you have now:
+
+```sh
+adb shell settings get secure default_input_method
+```
+
+Then switch to the TCL keyboard and turn the phone-remote service off:
 
 ```sh
 adb shell ime set com.tcl.inputmethod.international/.T_IME
 adb shell pm disable-user --user 0 com.google.android.tv.remote.service
 ```
 
-That turns off control from the Google TV phone app. TCL's own remote is infrared, so it keeps working. To undo it, run `adb shell pm enable com.google.android.tv.remote.service`.
+This also stops your phone from working as a remote: no typing, voice search or control from the Google TV or Google Home app. `undo.sh` doesn't undo it. To undo it by hand, turn the service back on and switch back to the keyboard you noted:
 
-**The TCL logo at startup** is part of the TV's firmware, so it can't be turned off. Turn the TV off with the remote, not at the wall. TCL's quick start then wakes it straight to the home screen, with no logo.
+```sh
+adb shell pm enable com.google.android.tv.remote.service
+adb shell ime set <the keyboard you noted>
+```
+
+**The TCL logo at startup** is part of the TV's firmware, so it can't be turned off. On this TV, turning it off with the remote (not at the wall) let TCL's quick start wake it straight to the home screen, with no logo.
 
 </details>
 
