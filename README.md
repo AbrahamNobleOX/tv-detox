@@ -355,7 +355,7 @@ To add an app, pick the **Add app** tile in the bottom row. Add as many apps as 
 <summary><b>Can I change the background?</b></summary>
 <br>
 
-Yes. Move up to the clock, press **OK** and pick **Wallpaper**. There are eight dark gradients: Dusk (the default), Midnight, Plum, Forest, Graphite, Ocean, Ember and Aurora. The background changes as you move through the list; press **OK** to keep one, or **Back** to leave it as it was. They're colours only, no pictures, so every one is just as fast and uses the same memory.
+Yes. Pick the **Wallpaper** tile in the bottom row (or move up to the clock and press **OK**). There are eight gradients: Dusk (the default), Sunset, Lagoon, Aurora, Coral, Iris, Meadow and Gold. The background changes as you move through the list; press **OK** to keep one, or **Back** to leave it as it was. They're colours only, no pictures, so every one is just as fast and uses the same memory.
 
 </details>
 

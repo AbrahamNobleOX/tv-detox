@@ -73,6 +73,7 @@ public class MainActivity extends Activity {
     private static final String PLAY_STORE = "com.android.vending";
     private static final String SETTINGS = "settings";
     private static final String ADD = "add";
+    private static final String WALLPAPER = "wallpaper";
     private static final String[] EDIT_ITEMS = {"Move", "Replace", "Remove from home", "Uninstall"};
     private static final String[] EDIT_ITEMS_SYSTEM = {"Move", "Replace", "Remove from home", "App info"};
     private static final int PER_ROW = 6, MAX_INPUTS = 4;
@@ -94,21 +95,23 @@ public class MainActivity extends Activity {
     private static final int ICON_TOP = 76, ICON_BUTTON = 72, ICON_SIZE = 40, ICON_GAP = 12; // level with the date
     private static final int CLOCK_PAD = 24; // room for the clock's focus glass
 
-    // OK on the clock opens the home screen's own settings. Wallpaper is the only one so far.
+    // OK on the clock opens the home screen's own settings. Wallpaper is the only one so far (it has
+    // a tile in the bottom row too).
     private static final String CLOCK = "clock";
     private static final String[] CLOCK_ITEMS = {"Wallpaper"};
-    // Wallpapers, saved by name: a dark gradient top to bottom, then a glow from the top left and one
-    // from the bottom right. Only colours, no images, so every one costs the same as Dusk, the default.
-    private static final String[] WALLPAPER_NAMES = {"Dusk", "Midnight", "Plum", "Forest", "Graphite", "Ocean", "Ember", "Aurora"};
+    // Wallpapers, saved by name: a gradient top to bottom, then a glow from the top left and one from
+    // the bottom right. Each gets darker towards the bottom, so the white labels stay easy to read.
+    // Only colours, no images, so every one costs the same as Dusk, the default.
+    private static final String[] WALLPAPER_NAMES = {"Dusk", "Sunset", "Lagoon", "Aurora", "Coral", "Iris", "Meadow", "Gold"};
     private static final int[][] WALLPAPERS = {
         {0xFF15100F, 0xFF0A0809, 0xFF050405, 0x36FF8048, 0x2EAA3C8C},
-        {0xFF0E1220, 0xFF080A13, 0xFF040509, 0x384A6CFF, 0x2E5A3CC8},
-        {0xFF170E19, 0xFF0C070D, 0xFF050306, 0x38C050B4, 0x2E6440D2},
-        {0xFF0C150F, 0xFF070C09, 0xFF030604, 0x3050B478, 0x28289682},
-        {0xFF151617, 0xFF0B0C0D, 0xFF050506, 0x1CFFFFFF, 0x16A0B4C8},
-        {0xFF0A1517, 0xFF060C0E, 0xFF030607, 0x3426B4C8, 0x2E2A64C0},
-        {0xFF190D08, 0xFF0D0605, 0xFF060303, 0x40FF5A24, 0x32C8283C},
-        {0xFF0B1315, 0xFF070B0D, 0xFF030506, 0x3440D2A0, 0x308050D2},
+        {0xFF8C3A5E, 0xFF5E2348, 0xFF22101E, 0xA0FF8A4C, 0x80E0457A},
+        {0xFF14588E, 0xFF15366E, 0xFF0A1632, 0x9030C8E0, 0x807A4CE0},
+        {0xFF0F4048, 0xFF0F2E3A, 0xFF08141C, 0x9038E0A0, 0x90A050F0},
+        {0xFFC0604E, 0xFF8A3456, 0xFF2E1230, 0x90FFB070, 0x70E04090},
+        {0xFF5A3CAE, 0xFF3A2A84, 0xFF16123A, 0x90C080FF, 0x804A7CFF},
+        {0xFF2E6E4C, 0xFF1C4A40, 0xFF0A201E, 0x90A8E070, 0x6030A8A8},
+        {0xFFB07624, 0xFF86401E, 0xFF2A1410, 0x90FFD060, 0x70FF5040},
     };
     private float scale = 1f;
 
@@ -430,17 +433,18 @@ public class MainActivity extends Activity {
             addTile(root, pkg, label, banner, null, icon, gridX(i), gridY(i), w, h);
         }
 
-        // Bottom row: Play Store, HDMI inputs, Settings and Add app, six at most.
+        // Bottom row: Play Store, HDMI inputs, Settings, Wallpaper and Add app, six at most.
         int col = 0;
         boolean store = !apps.contains(PLAY_STORE) && launchIntent(pm, PLAY_STORE) != null;
         List<TvInputInfo> inputs = hdmiInputs();
-        int room = PER_ROW - 2 - (store ? 1 : 0);
+        int room = PER_ROW - 3 - (store ? 1 : 0);
         if (inputs.size() > room) inputs = inputs.subList(0, room);
         if (store)
             addTile(root, PLAY_STORE, "Play Store", null, LineIcon.PLAY, null, m + col++ * (w + g), bottomTop, w, h);
         for (TvInputInfo in : inputs)
             addTile(root, in.getId(), inputLabel(in), null, LineIcon.HDMI, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, SETTINGS, Strings.t("Settings"), null, LineIcon.SETTINGS, null, m + col++ * (w + g), bottomTop, w, h);
+        addTile(root, WALLPAPER, Strings.t("Wallpaper"), null, LineIcon.WALLPAPER, null, m + col++ * (w + g), bottomTop, w, h);
         addTile(root, ADD, Strings.t("Add app"), null, LineIcon.PLUS, null, m + col * (w + g), bottomTop, w, h);
 
         // Plain icons at the top right, level with the date: any settings shortcuts picked, then the
@@ -592,6 +596,9 @@ public class MainActivity extends Activity {
         Intent i;
         if (ADD.equals(key)) {
             showAddMenu(-1);
+            return;
+        } else if (WALLPAPER.equals(key)) {
+            showWallpapers();
             return;
         } else if (SETTINGS.equals(key)) {
             i = new Intent(Settings.ACTION_SETTINGS);
