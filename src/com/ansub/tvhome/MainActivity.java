@@ -107,8 +107,13 @@ public class MainActivity extends Activity {
     private TextView moveHint;  // shown above the apps while moving
     private boolean longPressed; // OK was held: swallow the key-up so the app doesn't open
 
+    // Apps installed, removed or updated. This often lands once Home is already back in front (an app
+    // uninstalled from the menu is gone only after Android's prompt has closed), so catch up then.
     private final BroadcastReceiver packagesChanged = new BroadcastReceiver() {
-        @Override public void onReceive(Context c, Intent i) { dirty = true; }
+        @Override public void onReceive(Context c, Intent i) {
+            dirty = true;
+            refreshApps();
+        }
     };
 
     // The network tile follows the connection live: Wi-Fi bars, Ethernet or Offline. Only its icon and
@@ -255,6 +260,21 @@ public class MainActivity extends Activity {
         if (f == null && !tiles.isEmpty()) tiles.get(0).requestFocus();
     }
 
+    // Back from a menu or a window on top (like the uninstall prompt): catch up on apps that changed.
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) refreshApps();
+    }
+
+    // Rebuilds the tiles if apps changed, but only while Home is in front with no menu open and no
+    // app being moved; otherwise the next onResume, focus change or end of the move does it.
+    private void refreshApps() {
+        if (!dirty || !hasWindowFocus() || movingKey != null) return;
+        dirty = false;
+        buildTiles();
+    }
+
     // The TV's language changed: start over so the labels and the date follow it.
     @Override
     public void onConfigurationChanged(android.content.res.Configuration c) {
@@ -288,6 +308,7 @@ public class MainActivity extends Activity {
         // While tiles are swapped out, removing the focused one would hand focus down the row (and
         // overwrite focusedKey), so hold focus off until the new tiles are in.
         String want = focusedKey;
+        int wantAt = rowApps.indexOf(want); // where it was, in case the app is gone now
         root.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
         for (View t : tiles) {
             View wrap = (View) t.getParent();
@@ -363,6 +384,9 @@ public class MainActivity extends Activity {
         refreshNetwork();
 
         root.setDescendantFocusability(ViewGroup.FOCUS_AFTER_DESCENDANTS);
+        // An app that was uninstalled hands focus to the one now in its place, as Remove does.
+        if (wantAt >= 0 && !rowApps.contains(want))
+            want = rowApps.isEmpty() ? ADD : rowApps.get(Math.min(wantAt, rowApps.size() - 1));
         View restore = null;
         for (View t : tiles) if (t.getTag().equals(want)) restore = t;
         if (restore != null) restore.requestFocus();
@@ -904,6 +928,7 @@ public class MainActivity extends Activity {
                 ((FrameLayout) tile(key)).setForeground(null);
                 moveHint.setVisibility(View.GONE);
                 saveRow();
+                refreshApps();
             }
             return true;
         }
